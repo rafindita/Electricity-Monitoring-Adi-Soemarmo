@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SLD · SCADA · Bandara Adi Soemarmo 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#010810;--surface:#03101f;--card:#050f1e;
+  --border:#0c1e3a;--border2:#142d52;--border3:#1e3f70;
+  --cyan:#00e5ff;--cyan2:#38bdf8;--green:#00f59b;
+  --amber:#fbbf24;--red:#ff3860;
+  --text:#dbeafe;--text2:#93c5fd;--muted:#2a4a72;--muted2:#4a6d9a;
+  --mv:#00f59b;--lv:#00e5ff;--gen:#ff3860;--trafo:#fbbf24;
+}
+html,body{height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.018) 2px,rgba(0,0,0,0.018) 4px);}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border3);border-radius:2px;}
+::-webkit-scrollbar-track{background:var(--border);}
+
+/* ── TOPBAR ── */
+#topbar{height:50px;background:var(--surface);border-bottom:2px solid var(--border2);display:flex;justify-content:space-between;align-items:center;padding:0 20px;flex-shrink:0;box-shadow:0 2px 40px rgba(0,229,255,0.07);position:relative;z-index:100;}
+#topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,0.3),transparent);}
+.logo-area{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#0369a1,#00e5ff);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,229,255,0.4);}
+.logo-icon svg{width:18px;height:18px;}
+.logo-text{display:flex;flex-direction:column;gap:2px;}
+.logo-title{font-family:'Orbitron',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:3.5px;color:var(--text);}
+.logo-sub{font-size:8px;color:var(--muted2);letter-spacing:1.5px;}
+.sys-status{display:flex;align-items:center;gap:8px;background:rgba(0,245,155,0.05);border:1px solid rgba(0,245,155,0.22);padding:5px 16px;border-radius:20px;}
+.sys-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:blink 1.8s infinite;}
+.sys-text{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;color:var(--green);letter-spacing:1.5px;}
+#sys-mw{color:var(--amber);}
+.clock{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;color:var(--cyan);letter-spacing:2.5px;text-shadow:0 0 14px rgba(0,229,255,0.55);}
+.date-str{font-size:8.5px;color:var(--muted2);letter-spacing:1.2px;margin-top:2px;text-align:right;}
+#db-status{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:16px;border:1px solid var(--border2);font-size:8px;font-family:'Orbitron',sans-serif;letter-spacing:1px;cursor:pointer;transition:all 0.3s;}
+#db-status.connecting{border-color:var(--amber);color:var(--amber);}
+#db-status.live{border-color:var(--green);color:var(--green);background:rgba(0,245,155,0.05);}
+#db-status.error{border-color:var(--red);color:var(--red);background:rgba(255,56,96,0.05);}
+#db-status.fallback{border-color:var(--amber);color:var(--amber);background:rgba(251,191,36,0.05);}
+.db-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.db-dot.pulse{animation:blink 1s infinite;}
+
+/* ── SUBBAR ── */
+#subbar{height:36px;background:rgba(2,12,25,0.98);border-bottom:1px solid rgba(12,30,58,0.9);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;position:relative;z-index:99;}
+.legend-row{display:flex;gap:18px;align-items:center;}
+.leg-item{display:flex;gap:7px;align-items:center;font-size:8.5px;color:var(--muted2);}
+.leg-line{width:24px;height:3px;border-radius:2px;}
+.subbar-right{display:flex;gap:8px;align-items:center;}
+.ctrl-btn{padding:3px 13px;border:1px solid var(--border2);border-radius:4px;background:transparent;color:var(--muted2);font-family:'JetBrains Mono',monospace;font-size:8.5px;font-weight:600;cursor:pointer;transition:all 0.2s;letter-spacing:0.5px;}
+.ctrl-btn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 8px rgba(0,229,255,0.2);}
+.ctrl-btn.active-tab{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,0.08);}
+#refresh-info{font-size:8px;color:var(--muted2);letter-spacing:0.5px;}
+
+/* ── MAIN ── */
+#main{display:flex;height:calc(100vh - 86px);overflow:hidden;}
+
+/* ── LEFT SIDEBAR ── */
+#left-sidebar{width:210px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.sidebar-section{border-bottom:1px solid var(--border);}
+.ss-header{padding:7px 12px;font-family:'Orbitron',sans-serif;font-size:7px;font-weight:700;color:var(--muted2);letter-spacing:2px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.ss-header-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+
+/* Panel Box Cards */
+.panel-box{padding:10px 12px;border-bottom:1px solid rgba(12,30,58,0.5);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;position:relative;}
+.panel-box:hover{background:rgba(0,229,255,0.03);border-left-color:var(--cyan);}
+.panel-box.active{background:rgba(0,229,255,0.06);border-left-color:var(--cyan);}
+.pb-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.pb-name{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;}
+.pb-badge{font-size:6.5px;padding:2px 6px;border-radius:3px;font-family:'Orbitron',sans-serif;letter-spacing:0.5px;font-weight:700;}
+.pb-badge.ok{background:rgba(0,245,155,0.1);color:var(--green);border:1px solid rgba(0,245,155,0.3);}
+.pb-badge.off{background:rgba(255,56,96,0.1);color:var(--red);border:1px solid rgba(255,56,96,0.3);}
+.pb-badge.warn{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.3);}
+.pb-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.pb-metric{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:3px;padding:4px 6px;}
+.pb-metric-lbl{font-size:6.5px;color:var(--muted2);margin-bottom:2px;}
+.pb-metric-val{font-family:'Orbitron',sans-serif;font-size:9.5px;font-weight:700;}
+.pb-metric-val.cyan{color:var(--cyan);}
+.pb-metric-val.green{color:var(--green);}
+.pb-metric-val.amber{color:var(--amber);}
+.pb-metric-val.cyan2{color:var(--cyan2);}
+.pb-metric-unit{font-size:6px;color:var(--muted2);}
+.pb-power-row{display:flex;justify-content:space-between;align-items:center;margin-top:5px;padding-top:4px;border-top:1px solid var(--border);}
+.pb-power-lbl{font-size:6.5px;color:var(--muted2);}
+.pb-power-val{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:var(--amber);}
+.pb-ts{font-size:6px;color:var(--muted);margin-top:3px;}
+.pb-bar-wrap{height:2px;background:var(--border);border-radius:2px;margin-top:5px;}
+.pb-bar{height:100%;border-radius:2px;transition:width 0.6s;}
+
+/* Power Balance on left */
+.sum-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.sum-label{font-size:8px;color:var(--muted2);}
+.sum-val{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;}
+
+/* ── CENTER ── */
+#center-area{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+#sld-canvas{flex:1;min-width:0;position:relative;background:radial-gradient(ellipse at 50% 30%,rgba(0,229,255,0.03) 0%,transparent 65%),var(--bg);overflow:hidden;cursor:grab;}
+#sld-canvas:active{cursor:grabbing;}
+#sld-canvas.hidden{display:none;}
+#zoom-layer{position:absolute;top:0;left:0;transform-origin:0 0;}
+#sld-svg-wrap{width:1800px;height:940px;}
+#sld-svg-wrap svg{width:100%;height:100%;}
+
+/* ── DATABASE PANEL ── */
+#db-panel{flex:1;display:none;flex-direction:column;overflow:hidden;background:var(--bg);}
+#db-panel.visible{display:flex;}
+#db-tabs{display:flex;gap:0;border-bottom:1px solid var(--border2);flex-shrink:0;background:var(--surface);}
+.db-tab{padding:8px 18px;font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;border-right:1px solid var(--border);}
+.db-tab:hover{color:var(--cyan2);background:rgba(0,229,255,0.03);}
+.db-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(0,229,255,0.06);}
+#db-content{flex:1;overflow:auto;padding:12px;}
+.db-table-wrap{overflow-x:auto;}
+.db-meta{font-size:8px;color:var(--muted2);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;}
+.db-meta span{display:flex;align-items:center;gap:6px;}
+.db-badge{padding:2px 8px;border-radius:10px;font-family:'Orbitron',sans-serif;font-size:7px;font-weight:700;letter-spacing:1px;}
+.db-badge.live{background:rgba(0,245,155,0.1);border:1px solid var(--green);color:var(--green);}
+.db-badge.err{background:rgba(255,56,96,0.1);border:1px solid var(--red);color:var(--red);}
+table.db-tbl{width:100%;border-collapse:collapse;font-size:9px;min-width:600px;}
+table.db-tbl th{background:rgba(0,229,255,0.06);border:1px solid var(--border2);padding:6px 10px;text-align:left;font-family:'Orbitron',sans-serif;font-size:7.5px;font-weight:700;letter-spacing:1px;color:var(--cyan2);white-space:nowrap;position:sticky;top:0;z-index:10;}
+table.db-tbl td{border:1px solid var(--border);padding:5px 10px;color:var(--text2);white-space:nowrap;font-size:8.5px;}
+table.db-tbl tr:hover td{background:rgba(0,229,255,0.03);}
+table.db-tbl tr.latest-row td{background:rgba(0,245,155,0.05);border-color:rgba(0,245,155,0.25);}
+table.db-tbl tr.latest-row td:first-child{border-left:3px solid var(--green);}
+.db-row-num{color:var(--muted2);font-size:7.5px;text-align:center;width:30px;}
+.db-loading{display:flex;align-items:center;justify-content:center;height:200px;gap:12px;color:var(--muted2);font-size:9px;}
+.db-loading .spin{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.db-empty{text-align:center;padding:40px;color:var(--muted2);font-size:9px;}
+.col-v{color:var(--cyan)!important;}
+.col-i{color:var(--green)!important;}
+.col-p{color:var(--amber)!important;}
+.col-ts{color:var(--muted2)!important;font-size:8px!important;}
+.col-f{color:#a78bfa!important;}
+.col-pf{color:var(--amber)!important;}
+
+/* ── RIGHT SIDEBAR ── */
+#right-sidebar{width:228px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.rs-section{border-bottom:1px solid var(--border);}
+.rs-header{padding:7px 12px;font-family:'Orbitron',sans-serif;font-size:7px;font-weight:700;color:var(--muted2);letter-spacing:2px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);}
+
+/* Event Log */
+.alarm-item{display:flex;gap:8px;align-items:flex-start;padding:6px 12px;border-bottom:1px solid rgba(12,30,58,0.4);}
+.alarm-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.alarm-content{flex:1;}
+.alarm-text{font-size:8px;color:var(--text2);line-height:1.4;}
+.alarm-time{color:var(--muted2);font-size:7px;display:block;margin-top:1px;}
+.alarm-src{font-size:6.5px;color:var(--muted);letter-spacing:0.5px;}
+
+/* Live Measurement kv grid */
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+.kv-cell{background:var(--card);padding:7px 10px;}
+.kv-lbl{font-size:6.5px;color:var(--muted2);margin-bottom:2px;line-height:1.2;}
+.kv-val{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:var(--cyan);}
+.kv-unit{font-size:6.5px;color:var(--muted2);}
+
+/* Power balance */
+.sum-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.sum-label{font-size:8px;color:var(--muted2);}
+.sum-val{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;}
+
+/* CB Status */
+.cb-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;}
+.cb-name{font-size:8px;font-weight:600;}
+.cb-status{font-size:7.5px;font-family:'Orbitron',sans-serif;}
+.cb-amps{font-size:8px;font-family:'Orbitron',sans-serif;min-width:32px;text-align:right;}
+
+/* Freq/PF section */
+.metric-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(12,30,58,0.3);}
+.metric-lbl{font-size:7.5px;color:var(--muted2);}
+.metric-val{font-family:'Orbitron',sans-serif;font-size:9.5px;font-weight:700;}
+
+/* ── WIRE ANIMATIONS ── */
+@keyframes flow-mv{to{stroke-dashoffset:-24;}}
+@keyframes flow-lv{to{stroke-dashoffset:-16;}}
+@keyframes flow-gen{to{stroke-dashoffset:-20;}}
+@keyframes flow-trafo{to{stroke-dashoffset:-18;}}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}
+.wire-mv{stroke:#00f59b!important;stroke-width:2.8!important;stroke-dasharray:10 5!important;animation:flow-mv 0.7s linear infinite!important;filter:drop-shadow(0 0 4px #00f59b)!important;fill:none!important;}
+.wire-lv{stroke:#00e5ff!important;stroke-width:2.2!important;stroke-dasharray:8 4!important;animation:flow-lv 0.55s linear infinite!important;filter:drop-shadow(0 0 4px #00e5ff)!important;fill:none!important;}
+.wire-gen{stroke:#ff3860!important;stroke-width:2.8!important;stroke-dasharray:10 5!important;animation:flow-gen 0.9s linear infinite!important;filter:drop-shadow(0 0 5px #ff3860)!important;fill:none!important;}
+.wire-trafo{stroke:#fbbf24!important;stroke-width:2.2!important;stroke-dasharray:8 4!important;animation:flow-trafo 0.8s linear infinite!important;filter:drop-shadow(0 0 4px #fbbf24)!important;fill:none!important;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:238px;z-index:99999;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.toast-item{padding:8px 16px;border-radius:6px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;animation:toastIn 0.3s ease;border:1px solid;}
+.toast-ok{background:rgba(0,245,155,0.12);border-color:var(--green);color:var(--green);}
+.toast-warn{background:rgba(251,191,36,0.12);border-color:var(--amber);color:var(--amber);}
+.toast-err{background:rgba(255,56,96,0.12);border-color:var(--red);color:var(--red);}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div id="topbar">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg viewBox="0 0 18 18" fill="none"><path d="M9 2L15 5.5V12.5L9 16L3 12.5V5.5L9 2Z" stroke="white" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 7V11M7 9H11" stroke="white" stroke-width="1.3" stroke-linecap="round"/></svg>
+    </div>
+    <div class="logo-text">
+      <div class="logo-title">SCADA · ADI SOEMARMO</div>
+      <div class="logo-sub">POWER MANAGEMENT SYSTEM · BANDARA INTERNASIONAL · 2026</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <div id="db-status" class="connecting" onclick="manualRefresh()" title="Klik untuk refresh manual">
+      <div class="db-dot pulse"></div>
+      <span id="db-status-text">CONNECTING...</span>
+    </div>
+    <div class="sys-status">
+      <div class="sys-dot" id="main-sys-dot"></div>
+      <div class="sys-text">ALL FEEDERS &nbsp;·&nbsp; <span id="sys-mw">0.0000</span> MW</div>
+    </div>
+  </div>
+  <div>
+    <div class="clock" id="clock-display">--:--:--</div>
+    <div class="date-str" id="date-display">-- --- 2026</div>
+  </div>
+</div>
+
+<!-- ═══ SUBBAR ═══ -->
+<div id="subbar">
+  <div class="legend-row">
+    <div class="leg-item"><div class="leg-line" style="background:#ff3860;box-shadow:0 0 5px #ff3860;"></div><span>Genset Feed</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#fbbf24;box-shadow:0 0 5px #fbbf24;"></div><span>Trafo</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00f59b;height:5px;box-shadow:0 0 5px #00f59b;"></div><span>MVMDP Bus</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00f59b;box-shadow:0 0 4px #00f59b;"></div><span>MV Feeder</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00e5ff;height:5px;box-shadow:0 0 5px #00e5ff;"></div><span>LVMDP Bus</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00e5ff;box-shadow:0 0 4px #00e5ff;"></div><span>LV Feeder</span></div>
+  </div>
+  <div class="subbar-right">
+    <span id="refresh-info">Last update: --:--:--</span>
+    <span id="zoom-indicator" style="font-size:8.5px;color:var(--muted2);">Zoom: 100%</span>
+    <button class="ctrl-btn active-tab" id="btn-sld" onclick="showView('sld')">SLD VIEW</button>
+    <button class="ctrl-btn" id="btn-db" onclick="showView('db')">DATABASE</button>
+    <button class="ctrl-btn" onclick="resetZoom()">RESET VIEW</button>
+    <button class="ctrl-btn" id="anim-btn" onclick="toggleAnim()">PAUSE ANIM</button>
+  </div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+
+  <!-- ═══ LEFT SIDEBAR — PANEL BOX INFO ═══ -->
+  <div id="left-sidebar">
+
+    <!-- TB LV 1 Panel Box -->
+    <div class="sidebar-section">
+      <div class="ss-header" style="color:var(--lv);">
+        <div class="ss-header-dot" style="background:var(--lv);box-shadow:0 0 5px var(--lv);"></div>
+        TB LV 1 · Panel Baru/1
+      </div>
+      <div class="panel-box active" id="pb-TBLV1" onclick="selectPanel('TBLV1')">
+        <div class="pb-header">
+          <span class="pb-name" style="color:var(--lv);">TB LV 1</span>
+          <span class="pb-badge ok" id="pbadge-TBLV1">AKTIF</span>
+        </div>
+        <div class="pb-grid">
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">V L1-N</div>
+            <div><span class="pb-metric-val cyan" id="pv-TBLV1-v">—</span><span class="pb-metric-unit"> V</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">I L1</div>
+            <div><span class="pb-metric-val green" id="pv-TBLV1-i">—</span><span class="pb-metric-unit"> A</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">FREQ</div>
+            <div><span class="pb-metric-val" style="color:#a78bfa;" id="pv-TBLV1-freq">—</span><span class="pb-metric-unit"> Hz</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">PF</div>
+            <div><span class="pb-metric-val amber" id="pv-TBLV1-pf">—</span></div>
+          </div>
+        </div>
+        <div class="pb-power-row">
+          <span class="pb-power-lbl">V L1-L2</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:9px;color:var(--cyan2);" id="pv-TBLV1-vll">— V</span>
+        </div>
+        <div class="pb-ts" id="pts-TBLV1">TS: —</div>
+        <div class="pb-bar-wrap"><div class="pb-bar" id="pbar-TBLV1" style="width:0%;background:var(--lv);"></div></div>
+      </div>
+    </div>
+
+    <!-- TB LV 2 Panel Box -->
+    <div class="sidebar-section">
+      <div class="ss-header" style="color:var(--lv);">
+        <div class="ss-header-dot" style="background:var(--lv);box-shadow:0 0 5px var(--lv);"></div>
+        TB LV 2 · Panel Baru/2
+      </div>
+      <div class="panel-box" id="pb-TBLV2" onclick="selectPanel('TBLV2')">
+        <div class="pb-header">
+          <span class="pb-name" style="color:var(--lv);">TB LV 2</span>
+          <span class="pb-badge ok" id="pbadge-TBLV2">AKTIF</span>
+        </div>
+        <div class="pb-grid">
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">V L1-N</div>
+            <div><span class="pb-metric-val cyan" id="pv-TBLV2-v">—</span><span class="pb-metric-unit"> V</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">I L1</div>
+            <div><span class="pb-metric-val green" id="pv-TBLV2-i">—</span><span class="pb-metric-unit"> A</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">FREQ</div>
+            <div><span class="pb-metric-val" style="color:#a78bfa;" id="pv-TBLV2-freq">—</span><span class="pb-metric-unit"> Hz</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">PF</div>
+            <div><span class="pb-metric-val amber" id="pv-TBLV2-pf">—</span></div>
+          </div>
+        </div>
+        <div class="pb-power-row">
+          <span class="pb-power-lbl">V L1-L2</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:9px;color:var(--cyan2);" id="pv-TBLV2-vll">— V</span>
+        </div>
+        <div class="pb-ts" id="pts-TBLV2">TS: —</div>
+        <div class="pb-bar-wrap"><div class="pb-bar" id="pbar-TBLV2" style="width:0%;background:var(--lv);"></div></div>
+      </div>
+    </div>
+
+    <!-- TL LV 1 Panel Box -->
+    <div class="sidebar-section">
+      <div class="ss-header" style="color:var(--cyan2);">
+        <div class="ss-header-dot" style="background:var(--cyan2);box-shadow:0 0 5px var(--cyan2);"></div>
+        TL LV 1 · Panel Lama
+      </div>
+      <div class="panel-box" id="pb-TLLV1" onclick="selectPanel('TLLV1')">
+        <div class="pb-header">
+          <span class="pb-name" style="color:var(--cyan2);">TL LV 1</span>
+          <span class="pb-badge ok" id="pbadge-TLLV1">AKTIF</span>
+        </div>
+        <div class="pb-grid">
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">V L-N</div>
+            <div><span class="pb-metric-val cyan2" id="pv-TLLV1-v">—</span><span class="pb-metric-unit"> V</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">I AVG</div>
+            <div><span class="pb-metric-val green" id="pv-TLLV1-i">—</span><span class="pb-metric-unit"> A</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">FREQ</div>
+            <div><span class="pb-metric-val" style="color:#a78bfa;" id="pv-TLLV1-freq">—</span><span class="pb-metric-unit"> Hz</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">PF</div>
+            <div><span class="pb-metric-val amber" id="pv-TLLV1-pf">—</span></div>
+          </div>
+        </div>
+        <div class="pb-power-row">
+          <span class="pb-power-lbl">P AKTIF</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:9px;color:var(--amber);" id="pv-TLLV1-pact">— W</span>
+        </div>
+        <div class="pb-power-row" style="margin-top:2px;">
+          <span class="pb-power-lbl">V L-L</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:9px;color:var(--cyan2);" id="pv-TLLV1-vll">— V</span>
+        </div>
+        <div class="pb-ts" id="pts-TLLV1">TS: —</div>
+        <div class="pb-bar-wrap"><div class="pb-bar" id="pbar-TLLV1" style="width:0%;background:var(--cyan2);"></div></div>
+      </div>
+    </div>
+
+    <!-- ST. KAI Panel Box -->
+    <div class="sidebar-section">
+      <div class="ss-header" style="color:var(--lv);">
+        <div class="ss-header-dot" style="background:var(--lv);box-shadow:0 0 5px var(--lv);"></div>
+        ST. KAI · Stasiun KAI
+      </div>
+      <div class="panel-box" id="pb-STKAI" onclick="selectPanel('STKAI')">
+        <div class="pb-header">
+          <span class="pb-name" style="color:var(--lv);">ST. KAI</span>
+          <span class="pb-badge ok" id="pbadge-STKAI">NORMAL</span>
+        </div>
+        <div class="pb-grid">
+          <div class="pb-metric" style="grid-column:1/-1;">
+            <div class="pb-metric-lbl">STATUS</div>
+            <div><span class="pb-metric-val green" style="font-size:8.5px;" id="pv-STKAI-status">—</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">STATUS RAW</div>
+            <div><span class="pb-metric-val cyan" id="pv-STKAI-raw">—</span></div>
+          </div>
+          <div class="pb-metric">
+            <div class="pb-metric-lbl">MODE</div>
+            <div><span class="pb-metric-val" style="color:var(--green);font-size:8px;" id="pv-STKAI-mode">CB</span></div>
+          </div>
+        </div>
+        <div class="pb-ts" id="pts-STKAI">TS: —</div>
+      </div>
+    </div>
+
+    <!-- Power Balance -->
+    <div class="sidebar-section" style="flex:1;">
+      <div class="ss-header" style="color:var(--amber);">
+        <div class="ss-header-dot" style="background:var(--amber);"></div>
+        POWER BALANCE
+      </div>
+      <div style="padding:12px 14px;">
+        <div class="sum-row"><span class="sum-label">GENERATION</span><span class="sum-val" style="color:var(--gen)" id="pb-gen2">— MW</span></div>
+        <div class="sum-row"><span class="sum-label">CONSUMPTION</span><span class="sum-val" style="color:var(--lv)" id="pb-cons2">— MW</span></div>
+        <div style="height:1px;background:var(--border);margin:7px 0;"></div>
+        <div class="sum-row"><span class="sum-label">BALANCE</span><span class="sum-val" style="color:var(--green)" id="pb-bal2">±—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CENTER AREA ═══ -->
+  <div id="center-area">
+    <!-- SLD CANVAS -->
+    <div id="sld-canvas">
+      <div id="zoom-layer">
+        <div id="sld-svg-wrap">
+<svg id="main-sld" viewBox="0 0 1800 940" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <filter id="gfx-green" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-cyan" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-amber" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-red" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-text" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <pattern id="bgrid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0L0 0 0 50" fill="none" stroke="rgba(12,30,58,0.28)" stroke-width="0.5"/></pattern>
+  <pattern id="bsub" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0L0 0 0 10" fill="none" stroke="rgba(12,30,58,0.1)" stroke-width="0.3"/></pattern>
+  <radialGradient id="vign" cx="50%" cy="50%" r="70%"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="rgba(1,8,16,0.5)"/></radialGradient>
+</defs>
+<rect width="1800" height="940" fill="url(#bsub)"/>
+<rect width="1800" height="940" fill="url(#bgrid)"/>
+<rect width="1800" height="940" fill="url(#vign)"/>
+<line x1="900" y1="12" x2="900" y2="920" stroke="#0c2040" stroke-width="1.5" stroke-dasharray="4 10"/>
+<rect x="60" y="12" width="780" height="26" rx="4" fill="#040c1a" stroke="#0c1e3a" stroke-width="1.2"/>
+<text x="450" y="30" text-anchor="middle" fill="#1e3f70" font-family="'Orbitron',sans-serif" font-size="11" letter-spacing="4" font-weight="700">TERMINAL BARU</text>
+<rect x="960" y="12" width="780" height="26" rx="4" fill="#040c1a" stroke="#0c1e3a" stroke-width="1.2"/>
+<text x="1350" y="30" text-anchor="middle" fill="#1e3f70" font-family="'Orbitron',sans-serif" font-size="11" letter-spacing="4" font-weight="700">TERMINAL LAMA</text>
+
+<!-- GEN1 TB -->
+<circle cx="330" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="330" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="330" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="330" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 1</text>
+<line id="wg1tb" x1="330" y1="122" x2="330" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(330,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 1</text>
+</g>
+<line id="wa1tb" x1="330" y1="190" x2="330" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<circle cx="330" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="330" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="330" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="330" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">1</text>
+<line id="wt1tb" x1="330" y1="270" x2="330" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(330,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 1</text>
+</g>
+<line id="wl1tb" x1="330" y1="302" x2="330" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- GEN2 TB -->
+<circle cx="570" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="570" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="570" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="570" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 2</text>
+<line id="wg2tb" x1="570" y1="122" x2="570" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(570,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 2</text>
+</g>
+<line id="wa2tb" x1="570" y1="190" x2="570" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<circle cx="570" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="570" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="570" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="570" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">2</text>
+<line id="wt2tb" x1="570" y1="270" x2="570" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(570,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wl2tb" x1="570" y1="302" x2="570" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- MVMDP GENSET BUS TB -->
+<line id="mvbus-tb" x1="150" y1="330" x2="750" y2="330" stroke="#00f59b" stroke-width="8" filter="url(#gfx-green)"/>
+<text x="450" y="318" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="8" letter-spacing="2.5" font-weight="700" filter="url(#gfx-text)" opacity="0.95">MVMDP GENSET</text>
+<circle cx="330" cy="330" r="7" fill="#00f59b"/>
+<circle cx="570" cy="330" r="7" fill="#00f59b"/>
+<circle cx="450" cy="330" r="6" fill="#00f59b" opacity="0.85"/>
+<line id="wtb-center-drop" x1="450" y1="330" x2="450" y2="360" stroke="#00f59b" stroke-width="2.8"/>
+<g transform="translate(450,368)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 3</text>
+</g>
+<line id="wtb-l3-mid" x1="450" y1="385" x2="450" y2="410" stroke="#00f59b" stroke-width="2.8"/>
+<g transform="translate(450,418)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wtb-l2-mvdp" x1="450" y1="435" x2="450" y2="460" stroke="#00f59b" stroke-width="2.8"/>
+
+<!-- MVDP BUS TB -->
+<line id="mvdp-bus-tb" x1="150" y1="460" x2="750" y2="460" stroke="#00f59b" stroke-width="4"/>
+<text x="200" y="448" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="7" font-weight="700" letter-spacing="1" opacity="0.8">MVDP</text>
+<circle cx="270" cy="460" r="6" fill="#00f59b"/>
+<circle cx="450" cy="460" r="6" fill="#00f59b"/>
+<circle cx="630" cy="460" r="6" fill="#00f59b"/>
+
+<!-- TB LV1 branch -->
+<line id="wtb-tr1-top" x1="270" y1="460" x2="270" y2="510" stroke="#00f59b" stroke-width="2.8"/>
+<circle cx="270" cy="510" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="270" cy="532" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="270" y="507" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="270" y="520" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtb-tr1-bot" x1="270" y1="552" x2="270" y2="590" stroke="#00e5ff" stroke-width="2.2"/>
+<g transform="translate(270,578)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtb-lv1-in" x1="270" y1="595" x2="270" y2="622" stroke="#00e5ff" stroke-width="2.2"/>
+<!-- TB LV1 Panel Box -->
+<rect x="188" y="622" width="164" height="80" rx="5" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+<rect x="188" y="622" width="164" height="22" rx="5" fill="rgba(0,229,255,0.06)"/>
+<text x="270" y="638" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">TB LV 1</text>
+<text x="270" y="651" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Terminal Baru / 1</text>
+<rect x="188" y="676" width="164" height="56" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="198" y="689" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">VLN:</text>
+<text x="222" y="689" fill="#00e5ff" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv1-v">—</text>
+<text x="272" y="689" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">FREQ:</text>
+<text x="300" y="689" fill="#38bdf8" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv1-freq">—</text>
+<text x="198" y="700" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">I_L1:</text>
+<text x="220" y="700" fill="#00f59b" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv1-i">—</text>
+<text x="272" y="700" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">PF:</text>
+<text x="288" y="700" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv1-pf">—</text>
+<text x="198" y="712" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="7" font-weight="700" id="kv-tblv1-p">VLL: —</text>
+<text x="198" y="724" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6" id="kv-tblv1-ts">TS: —</text>
+<g transform="translate(270,622)" onclick="selectPanel('TBLV1')" style="cursor:pointer">
+  <circle r="0" fill="#00e5ff" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.2s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- TB LV2 branch -->
+<line id="wtb-tr2-top" x1="450" y1="460" x2="450" y2="510" stroke="#00f59b" stroke-width="2.8"/>
+<circle cx="450" cy="510" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="450" cy="532" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="450" y="507" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="450" y="520" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtb-tr2-bot" x1="450" y1="552" x2="450" y2="590" stroke="#00e5ff" stroke-width="2.2"/>
+<g transform="translate(450,578)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtb-lv2-in" x1="450" y1="595" x2="450" y2="622" stroke="#00e5ff" stroke-width="2.2"/>
+<!-- TB LV2 Panel Box -->
+<rect x="368" y="622" width="164" height="80" rx="5" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+<rect x="368" y="622" width="164" height="22" rx="5" fill="rgba(0,229,255,0.06)"/>
+<text x="450" y="638" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">TB LV 2</text>
+<text x="450" y="651" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Terminal Baru / 2</text>
+<rect x="368" y="676" width="164" height="56" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="378" y="689" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">VLN:</text>
+<text x="402" y="689" fill="#00e5ff" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv2-v">—</text>
+<text x="452" y="689" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">FREQ:</text>
+<text x="480" y="689" fill="#38bdf8" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv2-freq">—</text>
+<text x="378" y="700" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">I_L1:</text>
+<text x="400" y="700" fill="#00f59b" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv2-i">—</text>
+<text x="452" y="700" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">PF:</text>
+<text x="468" y="700" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tblv2-pf">—</text>
+<text x="378" y="712" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="7" font-weight="700" id="kv-tblv2-p">VLL: —</text>
+<text x="378" y="724" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6" id="kv-tblv2-ts">TS: —</text>
+<g transform="translate(450,622)" onclick="selectPanel('TBLV2')" style="cursor:pointer">
+  <circle r="0" fill="#00e5ff" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.5s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- ST.KAI branch -->
+<line id="wtb-tr3-top" x1="630" y1="460" x2="630" y2="510" stroke="#00f59b" stroke-width="2.8"/>
+<circle cx="630" cy="510" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="630" cy="532" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="630" y="507" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="630" y="520" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtb-tr3-bot" x1="630" y1="552" x2="630" y2="590" stroke="#00e5ff" stroke-width="2.2"/>
+<g transform="translate(630,578)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtb-stkai-in" x1="630" y1="595" x2="630" y2="622" stroke="#00e5ff" stroke-width="2.2"/>
+<!-- ST.KAI Panel Box -->
+<rect x="548" y="622" width="164" height="80" rx="5" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+<rect x="548" y="622" width="164" height="22" rx="5" fill="rgba(0,229,255,0.06)"/>
+<text x="630" y="638" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">ST. KAI</text>
+<text x="630" y="651" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Stasiun KAI</text>
+<rect x="548" y="676" width="164" height="56" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="558" y="689" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">STATUS_RAW:</text>
+<text x="626" y="689" fill="#00e5ff" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-stkai-v">—</text>
+<text x="558" y="701" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">STATUS:</text>
+<text x="596" y="701" fill="#00f59b" font-family="'JetBrains Mono'" font-size="7.5" font-weight="700" id="kv-stkai-i">—</text>
+<text x="558" y="713" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6" id="kv-stkai-ts">TS: —</text>
+<text id="kv-stkai-p" style="display:none">—</text>
+<g transform="translate(630,622)" onclick="selectPanel('STKAI')" style="cursor:pointer">
+  <circle r="0" fill="#00e5ff" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.8s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- ═══ TERMINAL LAMA ═══ -->
+<!-- GEN1 TL -->
+<circle cx="1230" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="1230" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="1230" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="1230" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 1</text>
+<line id="wg1tl" x1="1230" y1="122" x2="1230" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(1230,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 1</text>
+</g>
+<line id="wa1tl" x1="1230" y1="190" x2="1230" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<circle cx="1230" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="1230" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="1230" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="1230" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">1</text>
+<line id="wt1tl" x1="1230" y1="270" x2="1230" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(1230,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 1</text>
+</g>
+<line id="wl1tl" x1="1230" y1="302" x2="1230" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- GEN2 TL -->
+<circle cx="1470" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="1470" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="1470" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="1470" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 2</text>
+<line id="wg2tl" x1="1470" y1="122" x2="1470" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(1470,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 2</text>
+</g>
+<line id="wa2tl" x1="1470" y1="190" x2="1470" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<circle cx="1470" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="1470" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="1470" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="1470" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">2</text>
+<line id="wt2tl" x1="1470" y1="270" x2="1470" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(1470,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wl2tl" x1="1470" y1="302" x2="1470" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- MVMDP GENSET BUS TL -->
+<line id="mvbus-tl" x1="1050" y1="330" x2="1650" y2="330" stroke="#00f59b" stroke-width="8" filter="url(#gfx-green)"/>
+<text x="1350" y="318" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="8" letter-spacing="2.5" font-weight="700" filter="url(#gfx-text)" opacity="0.95">MVMDP GENSET</text>
+<circle cx="1230" cy="330" r="7" fill="#00f59b"/>
+<circle cx="1470" cy="330" r="7" fill="#00f59b"/>
+<circle cx="1350" cy="330" r="6" fill="#00f59b" opacity="0.85"/>
+<line id="wtl-center-drop" x1="1350" y1="330" x2="1350" y2="360" stroke="#00f59b" stroke-width="2.8"/>
+<g transform="translate(1350,368)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 3</text>
+</g>
+<line id="wtl-l3-mid" x1="1350" y1="385" x2="1350" y2="410" stroke="#00f59b" stroke-width="2.8"/>
+<g transform="translate(1350,418)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wtl-l2-ctrl" x1="1350" y1="435" x2="1350" y2="458" stroke="#00f59b" stroke-width="2.8"/>
+
+<!-- TL LV 1 Controller Box -->
+<rect x="1280" y="458" width="140" height="36" rx="4" fill="#071e12" stroke="#00f59b" stroke-width="2.2"/>
+<text x="1350" y="473" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700" letter-spacing="1.5">TL LV 1</text>
+<text x="1350" y="486" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">Arduino · Sensor</text>
+<g transform="translate(1350,476)">
+  <circle r="0" fill="#00f59b" opacity="0"><animate attributeName="r" from="0" to="26" dur="2.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.22" to="0" dur="2.5s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- MVDP BUS TL -->
+<line id="mvdp-bus-tl" x1="1050" y1="460" x2="1650" y2="460" stroke="#00f59b" stroke-width="4"/>
+<circle cx="1350" cy="460" r="6" fill="#00f59b"/>
+<line id="wtl-ctrl-mvdp" x1="1350" y1="494" x2="1350" y2="460" stroke="#00f59b" stroke-width="2.8"/>
+
+<!-- Trafo TL -->
+<line id="wtl-tllv1-tr" x1="1350" y1="460" x2="1350" y2="516" stroke="#00e5ff" stroke-width="2.5"/>
+<circle cx="1350" cy="528" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2.2" filter="url(#gfx-amber)"/>
+<circle cx="1350" cy="550" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2.2"/>
+<text x="1350" y="525" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="1350" y="538" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtl-tr-lvmdp" x1="1350" y1="570" x2="1350" y2="608" stroke="#00e5ff" stroke-width="2.5"/>
+
+<!-- LVMDP BUS TL -->
+<line id="lvbus-tl" x1="1050" y1="608" x2="1650" y2="608" stroke="#00e5ff" stroke-width="8" filter="url(#gfx-cyan)"/>
+<text x="1350" y="596" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="8" letter-spacing="2.5" font-weight="700" filter="url(#gfx-text)" opacity="0.9">LVMDP</text>
+<circle cx="1350" cy="608" r="7" fill="#00e5ff"/>
+<line id="wtl-lv1-out" x1="1350" y1="608" x2="1350" y2="645" stroke="#00e5ff" stroke-width="2.5"/>
+<g transform="translate(1350,633)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtl-lv1-panel" x1="1350" y1="648" x2="1350" y2="672" stroke="#00e5ff" stroke-width="2.2"/>
+
+<!-- TL LV1 Panel Box -->
+<rect x="1268" y="672" width="164" height="80" rx="5" fill="#050f1e" stroke="#38bdf8" stroke-width="1.8"/>
+<rect x="1268" y="672" width="164" height="22" rx="5" fill="rgba(56,189,248,0.06)"/>
+<text x="1350" y="688" text-anchor="middle" fill="#38bdf8" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">TL LV 1</text>
+<text x="1350" y="701" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Terminal Lama</text>
+<rect x="1268" y="726" width="164" height="56" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="1278" y="739" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">V_LN:</text>
+<text x="1304" y="739" fill="#38bdf8" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tllv1-v">—</text>
+<text x="1355" y="739" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">FREQ:</text>
+<text x="1383" y="739" fill="#00e5ff" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tllv1-freq">—</text>
+<text x="1278" y="750" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">I_AVG:</text>
+<text x="1307" y="750" fill="#00f59b" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tllv1-i">—</text>
+<text x="1355" y="750" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">PF:</text>
+<text x="1371" y="750" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8" font-weight="700" id="kv-tllv1-pf">—</text>
+<text x="1278" y="762" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="7" font-weight="700" id="kv-tllv1-p">P_ACT: — W</text>
+<text x="1278" y="774" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6" id="kv-tllv1-ts">TS: —</text>
+<g transform="translate(1350,672)" onclick="selectPanel('TLLV1')" style="cursor:pointer">
+  <circle r="0" fill="#38bdf8" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.0s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.0s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- LEGEND -->
+<rect x="50" y="770" width="330" height="148" rx="6" fill="#040c1a" stroke="#0c2040" stroke-width="1.5"/>
+<rect x="50" y="770" width="330" height="24" rx="6" fill="#050f1e"/>
+<text x="66" y="786" fill="#1e3f70" font-family="'Orbitron',sans-serif" font-size="8" font-weight="700" letter-spacing="2">KETERANGAN / LEGEND</text>
+<line x1="66" y1="806" x2="100" y2="806" stroke="#ff3860" stroke-width="3" stroke-dasharray="7 3"/>
+<text x="110" y="810" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">Genset Feed (ACB / T / L)</text>
+<line x1="66" y1="826" x2="100" y2="826" stroke="#fbbf24" stroke-width="2.5" stroke-dasharray="7 3"/>
+<text x="110" y="830" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">Trafo Feed</text>
+<line x1="66" y1="846" x2="100" y2="846" stroke="#00f59b" stroke-width="6"/>
+<text x="110" y="850" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">MVMDP GENSET Bus</text>
+<line x1="66" y1="866" x2="100" y2="866" stroke="#00f59b" stroke-width="2.8" stroke-dasharray="7 3"/>
+<text x="110" y="870" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">MV Feeder (L1 / L2 / L3)</text>
+<line x1="66" y1="886" x2="100" y2="886" stroke="#00e5ff" stroke-width="6"/>
+<text x="110" y="890" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">LVMDP Bus (380 V)</text>
+<line x1="66" y1="906" x2="100" y2="906" stroke="#00e5ff" stroke-width="2.2" stroke-dasharray="7 3"/>
+<text x="110" y="910" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">LV Feeder (380 V)</text>
+<text x="900" y="930" text-anchor="middle" fill="#0c1e3a" font-family="'JetBrains Mono'" font-size="8">BANDARA INTERNASIONAL ADI SOEMARMO · SCADA SLD · REV 2026-D · POWER COMMAND CENTER</text>
+</svg>
+        </div>
+      </div>
+    </div><!-- end sld-canvas -->
+
+    <!-- DATABASE PANEL -->
+    <div id="db-panel">
+      <div id="db-tabs">
+        <div class="db-tab active" id="dbtab-TLLV1" onclick="switchDbTab('TLLV1')">LV LAMA</div>
+        <div class="db-tab" id="dbtab-TBLV1" onclick="switchDbTab('TBLV1')">LV BARU 1</div>
+        <div class="db-tab" id="dbtab-TBLV2" onclick="switchDbTab('TBLV2')">LV BARU 2</div>
+        <div class="db-tab" id="dbtab-STKAI" onclick="switchDbTab('STKAI')">KAI</div>
+        <div style="flex:1;"></div>
+        <div style="display:flex;align-items:center;padding:0 14px;gap:10px;">
+          <span style="font-size:8px;color:var(--muted2);font-family:'JetBrains Mono'" id="db-row-info">— baris</span>
+          <button class="ctrl-btn" onclick="manualRefresh()" style="font-size:7.5px;padding:3px 10px;">↻ REFRESH</button>
+        </div>
+      </div>
+      <div id="db-content">
+        <div class="db-loading" id="db-loading"><div class="spin"></div><span>Memuat data dari spreadsheet...</span></div>
+        <div id="db-table-container" style="display:none;"></div>
+      </div>
+    </div>
+  </div><!-- end center-area -->
+
+  <!-- ═══ RIGHT SIDEBAR ═══ -->
+  <div id="right-sidebar">
+
+    <!-- Event Log -->
+    <div class="rs-section">
+      <div class="rs-header">▸ ALARM / EVENT LOG</div>
+      <div id="alarm-log"></div>
+    </div>
+
+    <!-- Live Measurement - per panel dengan semua parameter -->
+    <div class="rs-section">
+      <div class="rs-header">▸ LIVE MEASUREMENT</div>
+      <div style="padding:8px 12px;">
+        <!-- TB LV 1 -->
+        <div style="font-size:7px;color:var(--lv);font-family:'Orbitron',sans-serif;letter-spacing:1.5px;margin-bottom:4px;margin-top:2px;">TB LV 1</div>
+        <div class="kv-grid" style="margin-bottom:6px;">
+          <div class="kv-cell"><div class="kv-lbl">V L1-N</div><div><span class="kv-val" id="rv-tblv1-v">—</span><span class="kv-unit"> V</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">I L1</div><div><span class="kv-val" style="color:var(--green);" id="rv-tblv1-i">—</span><span class="kv-unit"> A</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">FREQ</div><div><span class="kv-val" style="color:#a78bfa;" id="rv-tblv1-freq">—</span><span class="kv-unit"> Hz</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">PF</div><div><span class="kv-val" style="color:var(--amber);" id="rv-tblv1-pf">—</span></div></div>
+        </div>
+        <!-- TB LV 2 -->
+        <div style="font-size:7px;color:var(--lv);font-family:'Orbitron',sans-serif;letter-spacing:1.5px;margin-bottom:4px;">TB LV 2</div>
+        <div class="kv-grid" style="margin-bottom:6px;">
+          <div class="kv-cell"><div class="kv-lbl">V L1-N</div><div><span class="kv-val" id="rv-tblv2-v">—</span><span class="kv-unit"> V</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">I L1</div><div><span class="kv-val" style="color:var(--green);" id="rv-tblv2-i">—</span><span class="kv-unit"> A</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">FREQ</div><div><span class="kv-val" style="color:#a78bfa;" id="rv-tblv2-freq">—</span><span class="kv-unit"> Hz</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">PF</div><div><span class="kv-val" style="color:var(--amber);" id="rv-tblv2-pf">—</span></div></div>
+        </div>
+        <!-- TL LV 1 -->
+        <div style="font-size:7px;color:var(--cyan2);font-family:'Orbitron',sans-serif;letter-spacing:1.5px;margin-bottom:4px;">TL LV 1</div>
+        <div class="kv-grid" style="margin-bottom:6px;">
+          <div class="kv-cell"><div class="kv-lbl">V L-N</div><div><span class="kv-val" style="color:var(--cyan2);" id="rv-tllv1-v">—</span><span class="kv-unit"> V</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">I AVG</div><div><span class="kv-val" style="color:var(--green);" id="rv-tllv1-i">—</span><span class="kv-unit"> A</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">FREQ</div><div><span class="kv-val" style="color:#a78bfa;" id="rv-tllv1-freq">—</span><span class="kv-unit"> Hz</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">PF</div><div><span class="kv-val" style="color:var(--amber);" id="rv-tllv1-pf">—</span></div></div>
+        </div>
+        <!-- ST. KAI -->
+        <div style="font-size:7px;color:var(--lv);font-family:'Orbitron',sans-serif;letter-spacing:1.5px;margin-bottom:4px;">ST. KAI</div>
+        <div class="kv-grid">
+          <div class="kv-cell"><div class="kv-lbl">STATUS RAW</div><div><span class="kv-val" id="rv-stkai-raw">—</span></div></div>
+          <div class="kv-cell"><div class="kv-lbl">STATUS</div><div><span class="kv-val" style="font-size:7.5px;color:var(--green);" id="rv-stkai-txt">—</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Power Balance -->
+    <div class="rs-section">
+      <div class="rs-header">▸ POWER BALANCE</div>
+      <div style="padding:10px 14px;">
+        <div class="sum-row"><span class="sum-label">GENERATION</span><span class="sum-val" style="color:var(--gen)" id="pb-gen">— MW</span></div>
+        <div class="sum-row"><span class="sum-label">CONSUMPTION</span><span class="sum-val" style="color:var(--lv)" id="pb-cons">— MW</span></div>
+        <div style="height:1px;background:var(--border);margin:6px 0;"></div>
+        <div class="sum-row"><span class="sum-label">BALANCE</span><span class="sum-val" style="color:var(--green)" id="pb-bal">±—</span></div>
+      </div>
+    </div>
+
+    <!-- CB Status -->
+    <div class="rs-section" style="flex:1;">
+      <div class="rs-header">▸ CB STATUS</div>
+      <div style="padding:8px 12px;font-size:8px;display:flex;flex-direction:column;gap:3px;">
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;color:var(--muted2);border-bottom:1px solid var(--border);padding-bottom:4px;font-size:7px;font-family:'Orbitron',sans-serif;letter-spacing:0.5px;">
+          <span>BREAKER</span><span style="text-align:center;">STATUS</span><span style="text-align:right;">I (A)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--gen);font-size:7.5px;">ACB1-TB</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-acb1tb" style="color:var(--green);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--gen);font-size:7.5px;">ACB2-TB</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-acb2tb" style="color:var(--green);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--gen);font-size:7.5px;">ACB1-TL</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-acb1tl" style="color:var(--green);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--gen);font-size:7.5px;">ACB2-TL</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-acb2tl" style="color:var(--green);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--mv);font-size:7.5px;">L3-TB</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-l3tb" style="color:var(--mv);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--mv);font-size:7.5px;">L2-TB</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-l2tb" style="color:var(--mv);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--mv);font-size:7.5px;">L3-TL</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-l3tl" style="color:var(--mv);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--mv);font-size:7.5px;">L2-TL</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-l2tl" style="color:var(--mv);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--lv);font-size:7.5px;">TB LV-1</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-tblv1" style="color:var(--lv);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--lv);font-size:7.5px;">TB LV-2</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-tblv2" style="color:var(--lv);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--lv);font-size:7.5px;">ST. KAI</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;" id="cbs-stkai-status">CLOSED</span><span id="cbs-stkai" style="color:var(--lv);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 38px;align-items:center;padding:2px 0;">
+          <span style="color:var(--cyan2);font-size:7.5px;">TL LV-1</span><span style="color:var(--green);text-align:center;font-size:7px;font-family:'Orbitron',sans-serif;">CLOSED</span><span id="cbs-tllv1" style="color:var(--cyan2);text-align:right;font-family:'Orbitron',sans-serif;font-size:8px;">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// KONFIGURASI
+// LV_LAMA  : TIME, V_LN, V_LL, I_L1, I_AVG, I_L3, I_L2, P_ACT, P_REA, P_APP, FREQ, PF
+// LV_BARU_1: TIME, L1_N, L2_N, L3_N, L1_L2, L2_L3, L3_L1, I_L1, I_L2, I_L3, FREQ, PF
+// LV_BARU_2: TIME, L1_N, L2_N, L3_N, L1_L2, L2_L3, L3_L1, I_L1, I_L2, I_L3, FREQ, PF
+// KAI      : TIME, STATUS_RAW, STATUS_TEXT
+// ═══════════════════════════════════════════════════════════
+const SHEETS_CONFIG = {
+  SPREADSHEET_ID: '1gIoMevcxZicCCq-rTlxMzzAwVBqDJyUWT9BeEujwRIQ',
+  REFRESH_INTERVAL: 5000,
+  SHEETS: {
+    TBLV1: 'LV_BARU_1',
+    TBLV2: 'LV_BARU_2',
+    STKAI: 'KAI',
+    TLLV1: 'LV_LAMA',
+  },
+  PANEL_TYPE: {
+    TBLV1: 'lv_baru',
+    TBLV2: 'lv_baru',
+    STKAI: 'status',
+    TLLV1: 'lv_lama',
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const STATE = {
+  animPaused: false,
+  zoom: 1, tx: 0, ty: 0,
+  dragging: false, sx: 0, sy: 0,
+  dbMode: 'connecting',
+  lastUpdate: null,
+  retryCount: 0,
+  currentView: 'sld',
+  currentDbTab: 'TLLV1',
+  allRows: { TBLV1: null, TBLV2: null, STKAI: null, TLLV1: null },
+  allHeaders: { TBLV1: null, TBLV2: null, STKAI: null, TLLV1: null },
+};
+
+const WIRES = {
+  gen:   ['wg1tb','wa1tb','wg2tb','wa2tb','wg1tl','wa1tl','wg2tl','wa2tl'],
+  trafo: ['wt1tb','wt2tb','wt1tl','wt2tl'],
+  mv:    ['wl1tb','wl2tb','mvbus-tb','wtb-center-drop','wtb-l3-mid','wtb-l2-mvdp',
+          'mvdp-bus-tb','wtb-tr1-top','wtb-tr2-top','wtb-tr3-top',
+          'wl1tl','wl2tl','mvbus-tl','wtl-center-drop','wtl-l3-mid','wtl-l2-ctrl',
+          'mvdp-bus-tl','wtl-ctrl-mvdp'],
+  lv:    ['wtb-tr1-bot','wtb-lv1-in','wtb-tr2-bot','wtb-lv2-in','wtb-tr3-bot','wtb-stkai-in',
+          'wtl-tllv1-tr','wtl-tr-lvmdp','lvbus-tl','wtl-lv1-out','wtl-lv1-panel']
+};
+
+// ═══════════════════════════════════════════════════════════
+// UTILITY
+// ═══════════════════════════════════════════════════════════
+function set(id, val) {
+  const e = document.getElementById(id);
+  if (e) e.textContent = val;
+}
+
+function showToast(msg, type = 'ok', duration = 4000) {
+  const t = document.getElementById('toast');
+  const item = document.createElement('div');
+  item.className = `toast-item toast-${type}`;
+  item.textContent = msg;
+  t.appendChild(item);
+  setTimeout(() => item.remove(), duration);
+}
+
+function addAlarm(msg, color = '#00f59b', source = 'SYSTEM') {
+  const log = document.getElementById('alarm-log');
+  const now = new Date().toLocaleTimeString('id-ID', {hour12:false});
+  const item = document.createElement('div');
+  item.className = 'alarm-item';
+  item.innerHTML = `<div class="alarm-dot" style="background:${color};box-shadow:0 0 6px ${color};flex-shrink:0;margin-top:3px;width:6px;height:6px;border-radius:50%;"></div>
+    <div class="alarm-content">
+      <div class="alarm-text">${msg}</div>
+      <span class="alarm-time">${now} · <span class="alarm-src">${source}</span></span>
+    </div>`;
+  log.insertBefore(item, log.firstChild);
+  while (log.children.length > 15) log.removeChild(log.lastChild);
+}
+
+function setDbStatus(mode, text) {
+  STATE.dbMode = mode;
+  const el = document.getElementById('db-status');
+  const dot = el.querySelector('.db-dot');
+  const txt = document.getElementById('db-status-text');
+  el.className = `db-status ${mode}`;
+  txt.textContent = text;
+  dot.classList.toggle('pulse', mode !== 'live');
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIEW SWITCHER
+// ═══════════════════════════════════════════════════════════
+function showView(view) {
+  STATE.currentView = view;
+  const sldCanvas = document.getElementById('sld-canvas');
+  const dbPanel   = document.getElementById('db-panel');
+  const btnSld    = document.getElementById('btn-sld');
+  const btnDb     = document.getElementById('btn-db');
+  if (view === 'sld') {
+    sldCanvas.classList.remove('hidden');
+    dbPanel.classList.remove('visible');
+    btnSld.classList.add('active-tab');
+    btnDb.classList.remove('active-tab');
+  } else {
+    sldCanvas.classList.add('hidden');
+    dbPanel.classList.add('visible');
+    btnSld.classList.remove('active-tab');
+    btnDb.classList.add('active-tab');
+    renderDbTable(STATE.currentDbTab);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DATABASE TAB SWITCHER
+// ═══════════════════════════════════════════════════════════
+function switchDbTab(panelId) {
+  STATE.currentDbTab = panelId;
+  document.querySelectorAll('.db-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById(`dbtab-${panelId}`);
+  if (tab) tab.classList.add('active');
+  renderDbTable(panelId);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER DATABASE TABLE
+// ═══════════════════════════════════════════════════════════
+function getColClass(header) {
+  const h = header.toString().toLowerCase().trim();
+  if (h === 'time') return 'col-ts';
+  if (h.startsWith('v_') || h.startsWith('l1_n') || h.startsWith('l2_n') || h.startsWith('l3_n') || h === 'v_ln' || h === 'v_ll') return 'col-v';
+  if (h.startsWith('l1_l') || h.startsWith('l2_l') || h.startsWith('l3_l')) return 'col-v';
+  if (h.startsWith('i_') || h === 'i_avg') return 'col-i';
+  if (h.startsWith('p_')) return 'col-p';
+  if (h === 'freq') return 'col-f';
+  if (h === 'pf') return 'col-pf';
+  return '';
+}
+
+function renderDbTable(panelId) {
+  const container = document.getElementById('db-table-container');
+  const loading   = document.getElementById('db-loading');
+  const rows      = STATE.allRows[panelId];
+  const headers   = STATE.allHeaders[panelId];
+  if (!rows || !headers) {
+    container.style.display = 'none';
+    loading.style.display   = 'flex';
+    loading.innerHTML = '<div class="spin"></div><span>Memuat data dari spreadsheet...</span>';
+    return;
+  }
+  loading.style.display   = 'none';
+  container.style.display = 'block';
+  const dataRows  = rows.slice(1).filter(r => r.some(c => c !== ''));
+  const totalRows = dataRows.length;
+  const sheetName = SHEETS_CONFIG.SHEETS[panelId];
+  const nowStr    = STATE.lastUpdate ? STATE.lastUpdate.toLocaleTimeString('id-ID', {hour12:false}) : '—';
+  const statusOk  = STATE.dbMode === 'live';
+  set('db-row-info', `${totalRows} baris · ${sheetName}`);
+  let html = `
+  <div class="db-meta">
+    <span><span class="db-badge ${statusOk ? 'live' : 'err'}">${statusOk ? 'LIVE' : 'ERROR'}</span>
+    Sheet: <b style="color:var(--cyan2)">${sheetName}</b> &nbsp;·&nbsp; ${totalRows} baris &nbsp;·&nbsp; Update: ${nowStr}</span>
+    <span style="color:var(--muted2);font-size:7.5px;">Data terbaru di baris paling bawah ↓</span>
+  </div>
+  <div class="db-table-wrap"><table class="db-tbl"><thead><tr><th class="db-row-num">#</th>`;
+  headers.forEach(h => {
+    const cls = getColClass(h);
+    const styleMap = {'col-v':'color:var(--cyan)','col-i':'color:var(--green)','col-p':'color:var(--amber)','col-f':'color:#a78bfa','col-pf':'color:var(--amber)','col-ts':'color:var(--muted2)'};
+    const st = styleMap[cls] ? `style="${styleMap[cls]}"` : '';
+    html += `<th ${st}>${h || '—'}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+  // Show last 200 rows for performance
+  const start = Math.max(0, dataRows.length - 200);
+  const visibleRows = dataRows.slice(start);
+  visibleRows.forEach((row, ri) => {
+    const absIdx = start + ri + 1;
+    const isLatest = ri === visibleRows.length - 1;
+    html += `<tr class="${isLatest ? 'latest-row' : ''}">`;
+    html += `<td class="db-row-num">${absIdx}${isLatest ? ' ★' : ''}</td>`;
+    row.forEach((cell, ci) => {
+      const cls = ci < headers.length ? getColClass(headers[ci]) : '';
+      html += `<td class="${cls}">${cell !== '' ? cell : '—'}</td>`;
+    });
+    for (let ci = row.length; ci < headers.length; ci++) html += `<td>—</td>`;
+    html += `</tr>`;
+  });
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+  setTimeout(() => {
+    const wrap = container.querySelector('.db-table-wrap');
+    if (wrap) wrap.scrollTop = wrap.scrollHeight;
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════
+function tick() {
+  const d = new Date();
+  const m = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES'];
+  set('clock-display', d.toLocaleTimeString('id-ID', {hour12:false}));
+  set('date-display', `${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear()}`);
+}
+tick();
+setInterval(tick, 1000);
+
+// ═══════════════════════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.map(line => {
+    const result = []; let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQuote = !inQuote; }
+      else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    result.push(cur.trim());
+    return result;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// COLUMN MAPPING — case-insensitive
+// ═══════════════════════════════════════════════════════════
+function buildColMap(headers) {
+  const map = {};
+  headers.forEach((h, i) => {
+    map[h.toString().toLowerCase().trim()] = i;
+  });
+  return map;
+}
+
+function getVal(row, colMap, ...keys) {
+  for (const k of keys) {
+    const idx = colMap[k.toLowerCase()];
+    if (idx !== undefined && idx < row.length) {
+      const v = parseFloat(row[idx]);
+      if (!isNaN(v)) return v;
+    }
+  }
+  return null;
+}
+
+function getStr(row, colMap, ...keys) {
+  for (const k of keys) {
+    const idx = colMap[k.toLowerCase()];
+    if (idx !== undefined && idx < row.length && row[idx] !== '') return row[idx].trim();
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FETCH — CSV first, GViz fallback, CORS proxy as last resort
+// ═══════════════════════════════════════════════════════════
+async function fetchSheetCSV(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.SPREADSHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (!text || text.trim().length === 0) throw new Error('Empty response');
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error('HTML returned (auth required)');
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error('No data rows');
+    return rows;
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
+async function fetchSheetGViz(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`GViz HTTP ${res.status}`);
+    const text = await res.text();
+    const jsonStr = text.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, '');
+    const data = JSON.parse(jsonStr);
+    if (!data.table) throw new Error('GViz no table');
+    const headers = data.table.cols.map(c => (c.label || c.id || '').toString());
+    const rows = [headers];
+    (data.table.rows || []).forEach(row => {
+      rows.push((row.c || []).map(cell => (cell && cell.v != null) ? String(cell.v) : ''));
+    });
+    if (rows.length < 2) throw new Error('GViz no data');
+    return rows;
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
+async function fetchSheet(sheetName) {
+  // Try CSV export first
+  try { return await fetchSheetCSV(sheetName); }
+  catch (e1) {
+    console.warn(`[SCADA] CSV gagal "${sheetName}":`, e1.message);
+    // Fallback ke GViz
+    try { return await fetchSheetGViz(sheetName); }
+    catch (e2) {
+      console.warn(`[SCADA] GViz gagal "${sheetName}":`, e2.message);
+      throw new Error(`Semua metode gagal: ${e1.message} | ${e2.message}`);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXTRACT DATA TERBARU dari rows
+// ═══════════════════════════════════════════════════════════
+function extractLatest(rows, panelId) {
+  const headers = rows[0];
+  const colMap  = buildColMap(headers);
+  const type    = SHEETS_CONFIG.PANEL_TYPE[panelId] || 'power';
+
+  // Cari baris terbaru non-kosong
+  let latestRow = null;
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i].some(c => c !== '')) { latestRow = rows[i]; break; }
+  }
+  if (!latestRow) throw new Error('No data rows');
+
+  // Timestamp
+  let ts = getStr(latestRow, colMap, 'time') || null;
+  if (!ts) {
+    for (const cell of latestRow) {
+      if (cell && /\d{1,2}[\/\-:]\d{1,2}/.test(cell)) { ts = cell.trim(); break; }
+    }
+  }
+
+  if (type === 'status') {
+    const statusRaw  = getVal(latestRow, colMap, 'status_raw');
+    const statusText = getStr(latestRow, colMap, 'status_text') || null;
+    return { _type: 'status', ts, statusRaw, statusText };
+  }
+
+  if (type === 'lv_baru') {
+    // LV_BARU_1 / LV_BARU_2: L1_N, L1_L2, I_L1, I_L2, I_L3, FREQ, PF
+    const v    = getVal(latestRow, colMap, 'l1_n');
+    const vll  = getVal(latestRow, colMap, 'l1_l2');
+    const il1  = getVal(latestRow, colMap, 'i_l1');
+    const il2  = getVal(latestRow, colMap, 'i_l2');
+    const il3  = getVal(latestRow, colMap, 'i_l3');
+    const freq = getVal(latestRow, colMap, 'freq');
+    const pf   = getVal(latestRow, colMap, 'pf');
+    return { _type: 'lv_baru', ts, v, vll, i: il1, il2, il3, freq, pf };
+  }
+
+  // lv_lama: V_LN, V_LL, I_L1, I_AVG, I_L3, I_L2, P_ACT, P_REA, P_APP, FREQ, PF
+  const v    = getVal(latestRow, colMap, 'v_ln');
+  const vll  = getVal(latestRow, colMap, 'v_ll');
+  const iavg = getVal(latestRow, colMap, 'i_avg');
+  const il1  = getVal(latestRow, colMap, 'i_l1');
+  const il2  = getVal(latestRow, colMap, 'i_l2');
+  const il3  = getVal(latestRow, colMap, 'i_l3');
+  const pact = getVal(latestRow, colMap, 'p_act');
+  const prea = getVal(latestRow, colMap, 'p_rea');
+  const papp = getVal(latestRow, colMap, 'p_app');
+  const freq = getVal(latestRow, colMap, 'freq');
+  const pf   = getVal(latestRow, colMap, 'pf');
+  return { _type: 'lv_lama', ts, v, vll, i: iavg, il1, il2, il3, pact, prea, papp, freq, pf };
+}
+
+// ═══════════════════════════════════════════════════════════
+// PANEL BOX SELECTOR
+// ═══════════════════════════════════════════════════════════
+function selectPanel(id) {
+  document.querySelectorAll('.panel-box').forEach(c => c.classList.remove('active'));
+  const pb = document.getElementById(`pb-${id}`);
+  if (pb) pb.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// APPLY DATA TO UI
+// ═══════════════════════════════════════════════════════════
+function applyData(panelData) {
+  let totalLoad = 0;
+
+  // ── TB LV 1 (lv_baru) ──
+  const d1 = panelData.TBLV1;
+  if (d1 && !d1._error && d1._type === 'lv_baru') {
+    const vStr   = d1.v    !== null ? d1.v.toFixed(1)    : '—';
+    const vllStr = d1.vll  !== null ? d1.vll.toFixed(1)  : '—';
+    const iStr   = d1.i    !== null ? d1.i.toFixed(2)    : '—';
+    const fStr   = d1.freq !== null ? d1.freq.toFixed(2) : '—';
+    const pfStr  = d1.pf   !== null ? d1.pf.toFixed(3)   : '—';
+    const tsShort = d1.ts ? d1.ts.replace(/^\d{1,2}\/\d{1,2}\/\d{4}\s/, '') : '—';
+    // Left sidebar
+    set('pv-TBLV1-v', vStr); set('pv-TBLV1-i', iStr); set('pv-TBLV1-freq', fStr); set('pv-TBLV1-pf', pfStr);
+    set('pv-TBLV1-vll', vllStr + ' V'); set('pts-TBLV1', 'TS: ' + tsShort);
+    const pbadge1 = document.getElementById('pbadge-TBLV1');
+    if (pbadge1) { pbadge1.className = d1.i && d1.i > 0 ? 'pb-badge ok' : 'pb-badge warn'; pbadge1.textContent = d1.i && d1.i > 0 ? 'AKTIF' : 'IDLE'; }
+    const pbar1 = document.getElementById('pbar-TBLV1');
+    if (pbar1 && d1.i) pbar1.style.width = Math.min(100, (d1.i / 150) * 100) + '%';
+    // SVG panel box
+    set('kv-tblv1-v', vStr); set('kv-tblv1-i', iStr); set('kv-tblv1-freq', fStr); set('kv-tblv1-pf', pfStr);
+    set('kv-tblv1-p', 'VLL: ' + vllStr + ' V'); set('kv-tblv1-ts', 'TS: ' + tsShort);
+    // Right sidebar
+    set('rv-tblv1-v', vStr); set('rv-tblv1-i', iStr); set('rv-tblv1-freq', fStr); set('rv-tblv1-pf', pfStr);
+    // CB amps
+    const i1 = d1.i || 0;
+    set('cbs-tblv1', i1.toFixed(0)); set('cbs-acb1tb', i1.toFixed(0)); set('cbs-acb2tb', i1.toFixed(0));
+    set('cbs-l3tb', i1.toFixed(0));
+    // Estimated power (3-phase): √3 × V × I × PF / 1000 (kW)
+    if (d1.v && d1.i) {
+      const pf = d1.pf || 0.9;
+      totalLoad += (Math.sqrt(3) * d1.v * d1.i * pf) / 1000;
+    }
+  }
+
+  // ── TB LV 2 (lv_baru) ──
+  const d2 = panelData.TBLV2;
+  if (d2 && !d2._error && d2._type === 'lv_baru') {
+    const vStr   = d2.v    !== null ? d2.v.toFixed(1)    : '—';
+    const vllStr = d2.vll  !== null ? d2.vll.toFixed(1)  : '—';
+    const iStr   = d2.i    !== null ? d2.i.toFixed(2)    : '—';
+    const fStr   = d2.freq !== null ? d2.freq.toFixed(2) : '—';
+    const pfStr  = d2.pf   !== null ? d2.pf.toFixed(3)   : '—';
+    const tsShort = d2.ts ? d2.ts.replace(/^\d{1,2}\/\d{1,2}\/\d{4}\s/, '') : '—';
+    set('pv-TBLV2-v', vStr); set('pv-TBLV2-i', iStr); set('pv-TBLV2-freq', fStr); set('pv-TBLV2-pf', pfStr);
+    set('pv-TBLV2-vll', vllStr + ' V'); set('pts-TBLV2', 'TS: ' + tsShort);
+    const pbadge2 = document.getElementById('pbadge-TBLV2');
+    if (pbadge2) { pbadge2.className = d2.i && d2.i > 0 ? 'pb-badge ok' : 'pb-badge warn'; pbadge2.textContent = d2.i && d2.i > 0 ? 'AKTIF' : 'IDLE'; }
+    const pbar2 = document.getElementById('pbar-TBLV2');
+    if (pbar2 && d2.i) pbar2.style.width = Math.min(100, (d2.i / 150) * 100) + '%';
+    set('kv-tblv2-v', vStr); set('kv-tblv2-i', iStr); set('kv-tblv2-freq', fStr); set('kv-tblv2-pf', pfStr);
+    set('kv-tblv2-p', 'VLL: ' + vllStr + ' V'); set('kv-tblv2-ts', 'TS: ' + tsShort);
+    set('rv-tblv2-v', vStr); set('rv-tblv2-i', iStr); set('rv-tblv2-freq', fStr); set('rv-tblv2-pf', pfStr);
+    const i2 = d2.i || 0;
+    set('cbs-tblv2', i2.toFixed(0)); set('cbs-l2tb', i2.toFixed(0));
+    if (d2.v && d2.i) {
+      const pf = d2.pf || 0.9;
+      totalLoad += (Math.sqrt(3) * d2.v * d2.i * pf) / 1000;
+    }
+  }
+
+  // ── TL LV 1 (lv_lama) ──
+  const d3 = panelData.TLLV1;
+  if (d3 && !d3._error && d3._type === 'lv_lama') {
+    const vStr   = d3.v    !== null ? d3.v.toFixed(1)    : '—';
+    const vllStr = d3.vll  !== null ? d3.vll.toFixed(1)  : '—';
+    const iStr   = d3.i    !== null ? d3.i.toFixed(2)    : '—';
+    const fStr   = d3.freq !== null ? d3.freq.toFixed(2) : '—';
+    const pfStr  = d3.pf   !== null ? d3.pf.toFixed(3)   : '—';
+    const pactStr = d3.pact !== null ? d3.pact.toFixed(1) : '—';
+    const tsShort = d3.ts ? d3.ts.replace(/^\d{1,2}\/\d{1,2}\/\d{4}\s/, '') : '—';
+    set('pv-TLLV1-v', vStr); set('pv-TLLV1-i', iStr); set('pv-TLLV1-freq', fStr); set('pv-TLLV1-pf', pfStr);
+    set('pv-TLLV1-pact', pactStr + ' W'); set('pv-TLLV1-vll', vllStr + ' V'); set('pts-TLLV1', 'TS: ' + tsShort);
+    const pbadge3 = document.getElementById('pbadge-TLLV1');
+    if (pbadge3) { pbadge3.className = d3.i && d3.i > 0 ? 'pb-badge ok' : 'pb-badge warn'; pbadge3.textContent = d3.i && d3.i > 0 ? 'AKTIF' : 'IDLE'; }
+    const pbar3 = document.getElementById('pbar-TLLV1');
+    if (pbar3 && d3.i) pbar3.style.width = Math.min(100, (d3.i / 150) * 100) + '%';
+    set('kv-tllv1-v', vStr); set('kv-tllv1-i', iStr); set('kv-tllv1-freq', fStr); set('kv-tllv1-pf', pfStr);
+    set('kv-tllv1-p', 'P_ACT: ' + pactStr + ' W'); set('kv-tllv1-ts', 'TS: ' + tsShort);
+    set('rv-tllv1-v', vStr); set('rv-tllv1-i', iStr); set('rv-tllv1-freq', fStr); set('rv-tllv1-pf', pfStr);
+    const i3 = d3.i || 0;
+    set('cbs-tllv1', i3.toFixed(0)); set('cbs-acb1tl', i3.toFixed(0)); set('cbs-acb2tl', i3.toFixed(0));
+    set('cbs-l3tl', i3.toFixed(0)); set('cbs-l2tl', i3.toFixed(0));
+    if (d3.pact !== null) {
+      totalLoad += d3.pact / 1000; // W → kW
+    } else if (d3.v && d3.i) {
+      const pf = d3.pf || 0.9;
+      totalLoad += (Math.sqrt(3) * d3.v * d3.i * pf) / 1000;
+    }
+  }
+
+  // ── ST. KAI (status) ──
+  const d4 = panelData.STKAI;
+  if (d4 && !d4._error && d4._type === 'status') {
+    const rawStr  = d4.statusRaw !== null ? String(d4.statusRaw) : '—';
+    const txtStr  = d4.statusText || '—';
+    const tsShort = d4.ts ? d4.ts.replace(/^\d{1,2}\/\d{1,2}\/\d{4}\s/, '') : '—';
+    const isNormal = d4.statusRaw === 0 || (typeof txtStr === 'string' && txtStr.toUpperCase().includes('NORMAL'));
+    set('pv-STKAI-raw', rawStr); set('pv-STKAI-status', txtStr); set('pts-STKAI', 'TS: ' + tsShort);
+    const pbadgek = document.getElementById('pbadge-STKAI');
+    if (pbadgek) { pbadgek.className = isNormal ? 'pb-badge ok' : 'pb-badge warn'; pbadgek.textContent = isNormal ? 'NORMAL' : 'WARNING'; }
+    set('pv-STKAI-mode', 'CB');
+    set('kv-stkai-v', rawStr); set('kv-stkai-i', txtStr); set('kv-stkai-ts', 'TS: ' + tsShort);
+    set('rv-stkai-raw', rawStr); set('rv-stkai-txt', txtStr);
+    const stEl = document.getElementById('rv-stkai-txt');
+    if (stEl) stEl.style.color = isNormal ? 'var(--green)' : 'var(--amber)';
+    set('cbs-stkai', rawStr);
+    const csCBStatus = document.getElementById('cbs-stkai-status');
+    if (csCBStatus) { csCBStatus.textContent = isNormal ? 'CLOSED' : 'OPEN'; csCBStatus.style.color = isNormal ? 'var(--green)' : 'var(--amber)'; }
+  }
+
+  // ── POWER BALANCE ──
+  const totalLoadMW = totalLoad / 1000; // kW → MW
+  const genMW  = (totalLoadMW * 1.025).toFixed(4);
+  const balMW  = `±${(Math.abs(totalLoadMW * 0.025)).toFixed(4)}`;
+  const loadStr = totalLoadMW.toFixed(4) + ' MW';
+  set('pb-gen', genMW + ' MW'); set('pb-cons', loadStr); set('pb-bal', balMW);
+  set('pb-gen2', genMW + ' MW'); set('pb-cons2', loadStr); set('pb-bal2', balMW);
+  set('sys-mw', totalLoadMW.toFixed(4));
+
+  // Update timestamp
+  const now = new Date();
+  STATE.lastUpdate = now;
+  set('refresh-info', `Last update: ${now.toLocaleTimeString('id-ID', {hour12:false})}`);
+  animateWires();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN FETCH
+// ═══════════════════════════════════════════════════════════
+let isFirstFetch = true;
+
+async function fetchAndUpdate() {
+  const sheetMap = SHEETS_CONFIG.SHEETS;
+  const panelIds = Object.keys(sheetMap);
+
+  const results = await Promise.allSettled(
+    panelIds.map(pid => fetchSheet(sheetMap[pid]))
+  );
+
+  const panelData = {};
+  let anySuccess = false, anyError = false;
+
+  results.forEach((res, idx) => {
+    const pid = panelIds[idx];
+    if (res.status === 'fulfilled') {
+      try {
+        const rows = res.value;
+        STATE.allRows[pid]    = rows;
+        STATE.allHeaders[pid] = rows[0];
+        panelData[pid] = extractLatest(rows, pid);
+        anySuccess = true;
+      } catch (e) {
+        console.warn(`[SCADA] Parse gagal ${pid}:`, e.message);
+        panelData[pid] = { _error: true, _type: 'power' };
+        anyError = true;
+      }
+    } else {
+      console.warn(`[SCADA] Fetch gagal ${pid}:`, res.reason?.message);
+      panelData[pid] = { _error: true, _type: 'power' };
+      anyError = true;
+    }
+  });
+
+  if (anySuccess && !anyError) {
+    if (STATE.dbMode !== 'live') {
+      setDbStatus('live', 'LIVE · DB');
+      if (!isFirstFetch) showToast('✓ Semua panel terhubung ke database', 'ok');
+      addAlarm('Database terhubung — semua sheet OK', '#00f59b', 'DB');
+    }
+    STATE.retryCount = 0;
+  } else if (anySuccess && anyError) {
+    setDbStatus('live', 'LIVE · PARSIAL');
+    if (isFirstFetch) addAlarm('Beberapa panel gagal dimuat', '#fbbf24', 'DB');
+  } else {
+    STATE.retryCount++;
+    if (STATE.retryCount === 1) {
+      setDbStatus('error', 'ERROR · RETRY');
+      showToast('⚠ Gagal fetch — mencoba ulang...', 'warn', 5000);
+      addAlarm('Koneksi database terputus — retry ' + STATE.retryCount, '#ff3860', 'DB');
+    }
+    if (STATE.retryCount >= 4 && STATE.dbMode !== 'fallback') {
+      setDbStatus('fallback', 'SIMULASI');
+      showToast('⚠ Mode simulasi aktif (akses spreadsheet gagal)', 'warn', 8000);
+      addAlarm('Mode simulasi aktif — cek akses spreadsheet', '#ff3860', 'DB');
+      runSimulation();
+      isFirstFetch = false;
+      return;
+    }
+  }
+
+  if (anySuccess) {
+    applyData(panelData);
+    if (STATE.currentView === 'db') renderDbTable(STATE.currentDbTab);
+  }
+
+  isFirstFetch = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIMULASI FALLBACK
+// ═══════════════════════════════════════════════════════════
+function simLvBaru(baseI, baseV = 233) {
+  const v    = baseV + (Math.random() * 4 - 2);
+  const i    = baseI + (Math.random() * 6 - 3);
+  const freq = 50.0 + (Math.random() * 0.1 - 0.05);
+  const pf   = 0.86 + Math.random() * 0.04;
+  const vll  = v * Math.sqrt(3);
+  const now  = new Date().toLocaleString('id-ID');
+  return { _type: 'lv_baru', v, vll, i, freq, pf, ts: now };
+}
+
+function simLvLama(baseI, baseV = 13649) {
+  const v    = baseV + (Math.random() * 4 - 2);
+  const vll  = 23679 + (Math.random() * 4 - 2);
+  const i    = baseI + (Math.random() * 2 - 1);
+  const freq = 50.0 + (Math.random() * 0.06 - 0.03);
+  const pf   = 0.865 + Math.random() * 0.01;
+  const pact = Math.sqrt(3) * vll * i * pf;
+  const now  = new Date().toLocaleString('id-ID');
+  return { _type: 'lv_lama', v, vll, i, freq, pf, pact, ts: now };
+}
+
+function runSimulation() {
+  const panelData = {
+    TBLV1: simLvBaru(1.67),
+    TBLV2: simLvBaru(1.63),
+    STKAI: { _type: 'status', ts: new Date().toLocaleString('id-ID'), statusRaw: 0, statusText: 'CLOSE / NORMAL' },
+    TLLV1: simLvLama(18.9),
+  };
+  applyData(panelData);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MANUAL REFRESH
+// ═══════════════════════════════════════════════════════════
+function manualRefresh() {
+  STATE.retryCount = 0;
+  setDbStatus('connecting', 'CONNECTING...');
+  showToast('↻ Refresh manual...', 'ok', 2000);
+  addAlarm('Manual refresh dimulai', '#38bdf8', 'USER');
+  fetchAndUpdate();
+}
+
+// ═══════════════════════════════════════════════════════════
+// WIRE ANIMATION
+// ═══════════════════════════════════════════════════════════
+function animateWires() {
+  if (STATE.animPaused) return;
+  WIRES.gen.forEach(id => { const e = document.getElementById(id); if (e) { e.className.baseVal=''; e.classList.add('wire-gen'); }});
+  WIRES.trafo.forEach(id => { const e = document.getElementById(id); if (e) { e.className.baseVal=''; e.classList.add('wire-trafo'); }});
+  WIRES.mv.forEach(id => { const e = document.getElementById(id); if (e) { e.className.baseVal=''; e.classList.add('wire-mv'); }});
+  WIRES.lv.forEach(id => { const e = document.getElementById(id); if (e) { e.className.baseVal=''; e.classList.add('wire-lv'); }});
+}
+
+// ═══════════════════════════════════════════════════════════
+// ZOOM & PAN
+// ═══════════════════════════════════════════════════════════
+function resetZoom() {
+  STATE.zoom=1; STATE.tx=0; STATE.ty=0;
+  const ly = document.getElementById('zoom-layer');
+  ly.style.transform = 'translate(0px,0px) scale(1)';
+  set('zoom-indicator','Zoom: 100%');
+}
+
+function toggleAnim() {
+  STATE.animPaused = !STATE.animPaused;
+  const btn = document.getElementById('anim-btn');
+  const all = [...WIRES.gen,...WIRES.trafo,...WIRES.mv,...WIRES.lv];
+  if (STATE.animPaused) {
+    btn.textContent='RESUME ANIM'; btn.style.color='var(--amber)';
+    all.forEach(id => { const e=document.getElementById(id); if(e) e.style.animationPlayState='paused'; });
+  } else {
+    btn.textContent='PAUSE ANIM'; btn.style.color='';
+    all.forEach(id => { const e=document.getElementById(id); if(e) e.style.animationPlayState='running'; });
+  }
+}
+
+// Drag & Zoom
+(function() {
+  const canvas = document.getElementById('sld-canvas');
+  const layer  = document.getElementById('zoom-layer');
+  if (!canvas||!layer) return;
+  canvas.addEventListener('mousedown', e => { STATE.dragging=true; STATE.sx=e.clientX-STATE.tx; STATE.sy=e.clientY-STATE.ty; });
+  window.addEventListener('mouseup', () => { STATE.dragging=false; });
+  window.addEventListener('mousemove', e => {
+    if (!STATE.dragging) return;
+    STATE.tx=e.clientX-STATE.sx; STATE.ty=e.clientY-STATE.sy;
+    layer.style.transform=`translate(${STATE.tx}px,${STATE.ty}px) scale(${STATE.zoom})`;
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    const xs=(mx-STATE.tx)/STATE.zoom, ys=(my-STATE.ty)/STATE.zoom;
+    STATE.zoom *= e.deltaY>0 ? 0.88 : 1.12;
+    STATE.zoom = Math.max(0.2,Math.min(STATE.zoom,8));
+    STATE.tx=mx-xs*STATE.zoom; STATE.ty=my-ys*STATE.zoom;
+    layer.style.transform=`translate(${STATE.tx}px,${STATE.ty}px) scale(${STATE.zoom})`;
+    set('zoom-indicator',`Zoom: ${Math.round(STATE.zoom*100)}%`);
+  }, {passive:false});
+})();
+
+// ═══════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════
+setDbStatus('connecting','CONNECTING...');
+addAlarm('Sistem SCADA dimulai — menghubungkan ke database...', '#fbbf24', 'BOOT');
+animateWires();
+fetchAndUpdate();
+setInterval(() => {
+  if (STATE.dbMode === 'fallback') runSimulation();
+  else fetchAndUpdate();
+}, SHEETS_CONFIG.REFRESH_INTERVAL);
+</script>
+</body>
+</html>
