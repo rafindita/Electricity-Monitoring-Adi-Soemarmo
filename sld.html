@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SLD · SCADA · Bandara Adi Soemarmo 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#010810;--surface:#03101f;--card:#050f1e;
+  --border:#0c1e3a;--border2:#142d52;--border3:#1e3f70;
+  --cyan:#00e5ff;--cyan2:#38bdf8;--green:#00f59b;
+  --amber:#fbbf24;--red:#ff3860;
+  --text:#dbeafe;--text2:#93c5fd;--muted:#2a4a72;--muted2:#4a6d9a;
+  --mv:#00f59b;--lv:#00e5ff;--gen:#ff3860;--trafo:#fbbf24;
+}
+html,body{height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.018) 2px,rgba(0,0,0,0.018) 4px);}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border3);border-radius:2px;}
+::-webkit-scrollbar-track{background:var(--border);}
+
+/* ── TOPBAR ── */
+#topbar{height:50px;background:var(--surface);border-bottom:2px solid var(--border2);display:flex;justify-content:space-between;align-items:center;padding:0 20px;flex-shrink:0;box-shadow:0 2px 40px rgba(0,229,255,0.07);position:relative;z-index:100;}
+#topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,0.3),transparent);}
+.logo-area{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#0369a1,#00e5ff);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,229,255,0.4);}
+.logo-icon svg{width:18px;height:18px;}
+.logo-text{display:flex;flex-direction:column;gap:2px;}
+.logo-title{font-family:'Orbitron',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:3.5px;color:var(--text);}
+.logo-sub{font-size:8px;color:var(--muted2);letter-spacing:1.5px;}
+.sys-status{display:flex;align-items:center;gap:8px;background:rgba(0,245,155,0.05);border:1px solid rgba(0,245,155,0.22);padding:5px 16px;border-radius:20px;}
+.sys-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:blink 1.8s infinite;}
+.sys-text{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;color:var(--green);letter-spacing:1.5px;}
+#sys-mw{color:var(--amber);}
+.clock{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:700;color:var(--cyan);letter-spacing:2.5px;text-shadow:0 0 14px rgba(0,229,255,0.55);}
+.date-str{font-size:8.5px;color:var(--muted2);letter-spacing:1.2px;margin-top:2px;text-align:right;}
+#db-status{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:16px;border:1px solid var(--border2);font-size:8px;font-family:'Orbitron',sans-serif;letter-spacing:1px;cursor:pointer;transition:all 0.3s;}
+#db-status.connecting{border-color:var(--amber);color:var(--amber);}
+#db-status.live{border-color:var(--green);color:var(--green);background:rgba(0,245,155,0.05);}
+#db-status.error{border-color:var(--red);color:var(--red);background:rgba(255,56,96,0.05);}
+#db-status.fallback{border-color:var(--amber);color:var(--amber);background:rgba(251,191,36,0.05);}
+.db-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.db-dot.pulse{animation:blink 1s infinite;}
+
+/* ── SUBBAR ── */
+#subbar{height:36px;background:rgba(2,12,25,0.98);border-bottom:1px solid rgba(12,30,58,0.9);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;position:relative;z-index:99;}
+.legend-row{display:flex;gap:18px;align-items:center;}
+.leg-item{display:flex;gap:7px;align-items:center;font-size:8.5px;color:var(--muted2);}
+.leg-line{width:24px;height:3px;border-radius:2px;}
+.subbar-right{display:flex;gap:8px;align-items:center;}
+.ctrl-btn{padding:3px 13px;border:1px solid var(--border2);border-radius:4px;background:transparent;color:var(--muted2);font-family:'JetBrains Mono',monospace;font-size:8.5px;font-weight:600;cursor:pointer;transition:all 0.2s;letter-spacing:0.5px;}
+.ctrl-btn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 8px rgba(0,229,255,0.2);}
+.ctrl-btn.active-tab{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,0.08);}
+#refresh-info{font-size:8px;color:var(--muted2);letter-spacing:0.5px;}
+
+/* ── MAIN ── */
+#main{display:flex;height:calc(100vh - 86px);overflow:hidden;}
+
+/* ── LEFT SIDEBAR ── */
+#left-sidebar{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.sidebar-section{border-bottom:1px solid var(--border);}
+.ss-header{padding:8px 13px;font-family:'Orbitron',sans-serif;font-size:7.5px;font-weight:700;color:var(--muted2);letter-spacing:2px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);}
+.feeder-card{padding:9px 13px;cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;}
+.feeder-card:hover{background:rgba(0,229,255,0.04);border-left-color:var(--cyan);}
+.feeder-card.active{background:rgba(0,229,255,0.07);border-left-color:var(--cyan);}
+.fc-name{font-size:9.5px;font-weight:700;margin-bottom:3px;}
+.fc-status{display:flex;align-items:center;gap:5px;margin-bottom:3px;}
+.fc-dot{width:5px;height:5px;border-radius:50%;}
+.fc-label{font-size:7.5px;color:var(--muted2);}
+.fc-val{font-family:'Orbitron',sans-serif;font-size:11.5px;font-weight:700;color:var(--green);}
+.fc-meta{font-size:7.5px;color:var(--muted2);margin-bottom:3px;}
+.fc-bar-wrap{height:2px;background:var(--border);border-radius:2px;margin-top:5px;}
+.fc-bar{height:100%;border-radius:2px;transition:width 0.6s;}
+.sum-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.sum-label{font-size:8px;color:var(--muted2);}
+.sum-val{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;}
+
+/* ── CENTER CONTENT (SLD + DB) ── */
+#center-area{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── SLD CANVAS ── */
+#sld-canvas{flex:1;min-width:0;position:relative;background:radial-gradient(ellipse at 50% 30%,rgba(0,229,255,0.03) 0%,transparent 65%),var(--bg);overflow:hidden;cursor:grab;}
+#sld-canvas:active{cursor:grabbing;}
+#sld-canvas.hidden{display:none;}
+#zoom-layer{position:absolute;top:0;left:0;transform-origin:0 0;}
+#sld-svg-wrap{width:1800px;height:940px;}
+#sld-svg-wrap svg{width:100%;height:100%;}
+
+/* ── DATABASE PANEL ── */
+#db-panel{flex:1;display:none;flex-direction:column;overflow:hidden;background:var(--bg);}
+#db-panel.visible{display:flex;}
+#db-tabs{display:flex;gap:0;border-bottom:1px solid var(--border2);flex-shrink:0;background:var(--surface);}
+.db-tab{padding:8px 18px;font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;border-right:1px solid var(--border);}
+.db-tab:hover{color:var(--cyan2);background:rgba(0,229,255,0.03);}
+.db-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(0,229,255,0.06);}
+#db-content{flex:1;overflow:auto;padding:12px;}
+.db-table-wrap{overflow-x:auto;}
+.db-meta{font-size:8px;color:var(--muted2);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;}
+.db-meta span{display:flex;align-items:center;gap:6px;}
+.db-badge{padding:2px 8px;border-radius:10px;font-family:'Orbitron',sans-serif;font-size:7px;font-weight:700;letter-spacing:1px;}
+.db-badge.live{background:rgba(0,245,155,0.1);border:1px solid var(--green);color:var(--green);}
+.db-badge.err{background:rgba(255,56,96,0.1);border:1px solid var(--red);color:var(--red);}
+table.db-tbl{width:100%;border-collapse:collapse;font-size:9px;min-width:600px;}
+table.db-tbl th{background:rgba(0,229,255,0.06);border:1px solid var(--border2);padding:6px 10px;text-align:left;font-family:'Orbitron',sans-serif;font-size:7.5px;font-weight:700;letter-spacing:1px;color:var(--cyan2);white-space:nowrap;position:sticky;top:0;z-index:10;}
+table.db-tbl td{border:1px solid var(--border);padding:5px 10px;color:var(--text2);white-space:nowrap;font-size:8.5px;}
+table.db-tbl tr:hover td{background:rgba(0,229,255,0.03);}
+table.db-tbl tr.latest-row td{background:rgba(0,245,155,0.05);border-color:rgba(0,245,155,0.25);}
+table.db-tbl tr.latest-row td:first-child{border-left:3px solid var(--green);}
+.db-row-num{color:var(--muted2);font-size:7.5px;text-align:center;width:30px;}
+.db-loading{display:flex;align-items:center;justify-content:center;height:200px;gap:12px;color:var(--muted2);font-size:9px;}
+.db-loading .spin{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.db-empty{text-align:center;padding:40px;color:var(--muted2);font-size:9px;}
+.col-v{color:var(--cyan)!important;}
+.col-i{color:var(--green)!important;}
+.col-p{color:var(--amber)!important;}
+.col-ts{color:var(--muted2)!important;font-size:8px!important;}
+
+/* ── RIGHT SIDEBAR ── */
+#right-sidebar{width:220px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.rs-section{border-bottom:1px solid var(--border);}
+.rs-header{padding:8px 13px;font-family:'Orbitron',sans-serif;font-size:7.5px;font-weight:700;color:var(--muted2);letter-spacing:2px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);}
+.alarm-item{display:flex;gap:8px;align-items:flex-start;padding:7px 13px;border-bottom:1px solid rgba(12,30,58,0.4);font-size:8.5px;}
+.alarm-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:2px;}
+.alarm-text{color:var(--text2);line-height:1.4;}
+.alarm-time{color:var(--muted2);font-size:7.5px;display:block;margin-top:2px;}
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+.kv-cell{background:var(--card);padding:8px 11px;}
+.kv-lbl{font-size:7px;color:var(--muted2);margin-bottom:3px;}
+.kv-val{font-family:'Orbitron',sans-serif;font-size:10.5px;font-weight:700;color:var(--cyan);}
+.kv-unit{font-size:7px;color:var(--muted2);}
+
+/* ── WIRE ANIMATIONS ── */
+@keyframes flow-mv{to{stroke-dashoffset:-24;}}
+@keyframes flow-lv{to{stroke-dashoffset:-16;}}
+@keyframes flow-gen{to{stroke-dashoffset:-20;}}
+@keyframes flow-trafo{to{stroke-dashoffset:-18;}}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}
+.wire-mv{stroke:#00f59b!important;stroke-width:2.8!important;stroke-dasharray:10 5!important;animation:flow-mv 0.7s linear infinite!important;filter:drop-shadow(0 0 4px #00f59b)!important;fill:none!important;}
+.wire-lv{stroke:#00e5ff!important;stroke-width:2.2!important;stroke-dasharray:8 4!important;animation:flow-lv 0.55s linear infinite!important;filter:drop-shadow(0 0 4px #00e5ff)!important;fill:none!important;}
+.wire-gen{stroke:#ff3860!important;stroke-width:2.8!important;stroke-dasharray:10 5!important;animation:flow-gen 0.9s linear infinite!important;filter:drop-shadow(0 0 5px #ff3860)!important;fill:none!important;}
+.wire-trafo{stroke:#fbbf24!important;stroke-width:2.2!important;stroke-dasharray:8 4!important;animation:flow-trafo 0.8s linear infinite!important;filter:drop-shadow(0 0 4px #fbbf24)!important;fill:none!important;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:230px;z-index:99999;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.toast-item{padding:8px 16px;border-radius:6px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;animation:toastIn 0.3s ease;border:1px solid;}
+.toast-ok{background:rgba(0,245,155,0.12);border-color:var(--green);color:var(--green);}
+.toast-warn{background:rgba(251,191,36,0.12);border-color:var(--amber);color:var(--amber);}
+.toast-err{background:rgba(255,56,96,0.12);border-color:var(--red);color:var(--red);}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div id="topbar">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg viewBox="0 0 18 18" fill="none"><path d="M9 2L15 5.5V12.5L9 16L3 12.5V5.5L9 2Z" stroke="white" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 7V11M7 9H11" stroke="white" stroke-width="1.3" stroke-linecap="round"/></svg>
+    </div>
+    <div class="logo-text">
+      <div class="logo-title">SCADA · ADI SOEMARMO</div>
+      <div class="logo-sub">POWER MANAGEMENT SYSTEM · BANDARA INTERNASIONAL · 2026</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <div id="db-status" class="connecting" onclick="manualRefresh()" title="Klik untuk refresh manual">
+      <div class="db-dot pulse"></div>
+      <span id="db-status-text">CONNECTING...</span>
+    </div>
+    <div class="sys-status">
+      <div class="sys-dot" id="main-sys-dot"></div>
+      <div class="sys-text">ALL FEEDERS ON &nbsp;·&nbsp; <span id="sys-mw">0.0000</span> MW</div>
+    </div>
+  </div>
+  <div>
+    <div class="clock" id="clock-display">--:--:--</div>
+    <div class="date-str" id="date-display">-- --- 2026</div>
+  </div>
+</div>
+
+<!-- ═══ SUBBAR ═══ -->
+<div id="subbar">
+  <div class="legend-row">
+    <div class="leg-item"><div class="leg-line" style="background:#ff3860;box-shadow:0 0 5px #ff3860;"></div><span>Genset Feed</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#fbbf24;box-shadow:0 0 5px #fbbf24;"></div><span>Trafo</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00f59b;height:5px;box-shadow:0 0 5px #00f59b;"></div><span>MVMDP Bus</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00f59b;box-shadow:0 0 4px #00f59b;"></div><span>MV Feeder</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00e5ff;height:5px;box-shadow:0 0 5px #00e5ff;"></div><span>LVMDP Bus</span></div>
+    <div class="leg-item"><div class="leg-line" style="background:#00e5ff;box-shadow:0 0 4px #00e5ff;"></div><span>LV Feeder</span></div>
+  </div>
+  <div class="subbar-right">
+    <span id="refresh-info">Last update: --:--:--</span>
+    <span id="zoom-indicator" style="font-size:8.5px;color:var(--muted2);">Zoom: 100%</span>
+    <button class="ctrl-btn active-tab" id="btn-sld">SLD VIEW</button>
+    <button class="ctrl-btn" onclick="resetZoom()">RESET VIEW</button>
+    <button class="ctrl-btn" id="anim-btn" onclick="toggleAnim()">PAUSE ANIM</button>
+  </div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+
+  <!-- LEFT SIDEBAR -->
+  <div id="left-sidebar">
+    <div class="sidebar-section">
+      <div class="ss-header">▸ GENSET — TERMINAL BARU</div>
+      <div class="feeder-card active" id="fc-GEN1TB" onclick="selectFeeder('GEN1TB')">
+        <div class="fc-name" style="color:var(--gen)">GEN 1 · Term. Baru</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 400 V</div></div>
+        <div class="fc-val" id="fv-GEN1TB">— MW</div>
+        <div class="fc-meta" id="fm-GEN1TB">400V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-GEN1TB" style="width:0%;background:var(--gen);"></div></div>
+      </div>
+      <div class="feeder-card" id="fc-GEN2TB" onclick="selectFeeder('GEN2TB')">
+        <div class="fc-name" style="color:var(--gen)">GEN 2 · Term. Baru</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 400 V</div></div>
+        <div class="fc-val" id="fv-GEN2TB">— MW</div>
+        <div class="fc-meta" id="fm-GEN2TB">400V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-GEN2TB" style="width:0%;background:var(--gen);"></div></div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="ss-header">▸ GENSET — TERMINAL LAMA</div>
+      <div class="feeder-card" id="fc-GEN1TL" onclick="selectFeeder('GEN1TL')">
+        <div class="fc-name" style="color:var(--gen)">GEN 1 · Term. Lama</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 400 V</div></div>
+        <div class="fc-val" id="fv-GEN1TL">— MW</div>
+        <div class="fc-meta" id="fm-GEN1TL">400V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-GEN1TL" style="width:0%;background:var(--gen);"></div></div>
+      </div>
+      <div class="feeder-card" id="fc-GEN2TL" onclick="selectFeeder('GEN2TL')">
+        <div class="fc-name" style="color:var(--gen)">GEN 2 · Term. Lama</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 400 V</div></div>
+        <div class="fc-val" id="fv-GEN2TL">— MW</div>
+        <div class="fc-meta" id="fm-GEN2TL">400V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-GEN2TL" style="width:0%;background:var(--gen);"></div></div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="ss-header">▸ LV PANEL OUTPUT</div>
+      <div class="feeder-card" id="fc-TBLV1" onclick="selectFeeder('TBLV1')">
+        <div class="fc-name" style="color:var(--lv)">TB LV 1</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 380 V</div></div>
+        <div class="fc-val" id="fv-TBLV1">— MW</div>
+        <div class="fc-meta" id="fm-TBLV1">380V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-TBLV1" style="width:0%;background:var(--lv);"></div></div>
+      </div>
+      <div class="feeder-card" id="fc-TBLV2" onclick="selectFeeder('TBLV2')">
+        <div class="fc-name" style="color:var(--lv)">TB LV 2</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 380 V</div></div>
+        <div class="fc-val" id="fv-TBLV2">— MW</div>
+        <div class="fc-meta" id="fm-TBLV2">380V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-TBLV2" style="width:0%;background:var(--lv);"></div></div>
+      </div>
+      <div class="feeder-card" id="fc-STKAI" onclick="selectFeeder('STKAI')">
+        <div class="fc-name" style="color:var(--lv)">ST. KAI</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 380 V</div></div>
+        <div class="fc-val" id="fv-STKAI">— MW</div>
+        <div class="fc-meta" id="fm-STKAI">380V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-STKAI" style="width:0%;background:var(--lv);"></div></div>
+      </div>
+      <div class="feeder-card" id="fc-TLLV1" onclick="selectFeeder('TLLV1')">
+        <div class="fc-name" style="color:var(--cyan2)">TL LV 1</div>
+        <div class="fc-status"><div class="fc-dot" style="background:var(--green);box-shadow:0 0 7px var(--green);"></div><div class="fc-label">AKTIF · 380 V</div></div>
+        <div class="fc-val" id="fv-TLLV1">— MW</div>
+        <div class="fc-meta" id="fm-TLLV1">380V · —A</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fb-TLLV1" style="width:0%;background:var(--cyan2);"></div></div>
+      </div>
+    </div>
+    <div class="sidebar-section" style="flex:1;">
+      <div class="ss-header">▸ POWER BALANCE</div>
+      <div style="padding:12px 14px;">
+        <div class="sum-row"><span class="sum-label">GENERATION</span><span class="sum-val" style="color:var(--gen)" id="pb-gen2">— MW</span></div>
+        <div class="sum-row"><span class="sum-label">LOAD</span><span class="sum-val" style="color:var(--lv)" id="pb-cons2">— MW</span></div>
+        <div style="height:1px;background:var(--border);margin:7px 0;"></div>
+        <div class="sum-row"><span class="sum-label">BALANCE</span><span class="sum-val" style="color:var(--green)" id="pb-bal2">±—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER AREA (SLD + DB) -->
+  <div id="center-area">
+
+    <!-- SLD CANVAS -->
+    <div id="sld-canvas">
+      <div id="zoom-layer">
+        <div id="sld-svg-wrap">
+<!--
+  ══════════════════════════════════════════════════════════════════════
+  SLD LAYOUT — SYMMETRIC & CENTERED
+  ViewBox: 0 0 1800 940
+  Divider: x=900 (center)
+  Terminal Baru: x=90–810, center ~450
+  Terminal Lama: x=990–1710, center ~1350
+  Generators pair spacing: ±120px from section center
+  ══════════════════════════════════════════════════════════════════════
+  TB center = 450  → GEN1@330, GEN2@570
+  TL center = 1350 → GEN1@1230, GEN2@1470
+  TB MVMDP BUS: x=150 to x=750, y=330
+  TL MVMDP BUS: x=960 to x=1740, y=330
+  TB feedpoint (center bus tapping): x=450
+  TL feedpoint: x=1350
+  TB MVDP BUS: y=466
+  TL MVDP BUS: y=466
+  TB panels: LV1@270, LV2@450, KAI@630  (spacing 180)
+  TL panel: TL LV1@1350
+-->
+<svg id="main-sld" viewBox="0 0 1800 940" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <filter id="gfx-green" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-cyan" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-amber" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-red" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="gfx-text" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <pattern id="bgrid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0L0 0 0 50" fill="none" stroke="rgba(12,30,58,0.28)" stroke-width="0.5"/></pattern>
+  <pattern id="bsub" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0L0 0 0 10" fill="none" stroke="rgba(12,30,58,0.1)" stroke-width="0.3"/></pattern>
+  <radialGradient id="vign" cx="50%" cy="50%" r="70%"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="rgba(1,8,16,0.5)"/></radialGradient>
+</defs>
+<rect width="1800" height="940" fill="url(#bsub)"/>
+<rect width="1800" height="940" fill="url(#bgrid)"/>
+<rect width="1800" height="940" fill="url(#vign)"/>
+
+<!-- Center divider -->
+<line x1="900" y1="12" x2="900" y2="920" stroke="#0c2040" stroke-width="1.5" stroke-dasharray="4 10"/>
+
+<!-- Section headers -->
+<rect x="60" y="12" width="780" height="26" rx="4" fill="#040c1a" stroke="#0c1e3a" stroke-width="1.2"/>
+<text x="450" y="30" text-anchor="middle" fill="#1e3f70" font-family="'Orbitron',sans-serif" font-size="11" letter-spacing="4" font-weight="700">TERMINAL BARU</text>
+<rect x="960" y="12" width="780" height="26" rx="4" fill="#040c1a" stroke="#0c1e3a" stroke-width="1.2"/>
+<text x="1350" y="30" text-anchor="middle" fill="#1e3f70" font-family="'Orbitron',sans-serif" font-size="11" letter-spacing="4" font-weight="700">TERMINAL LAMA</text>
+
+<!-- ════════════════════════════════════════════
+     TERMINAL BARU
+     GEN1 @ x=330  GEN2 @ x=570
+     Center @ x=450
+     ════════════════════════════════════════════ -->
+
+<!-- GEN1 TB (x=330) -->
+<circle cx="330" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="330" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="330" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="330" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 1</text>
+<line id="wg1tb" x1="330" y1="122" x2="330" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(330,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 1</text>
+</g>
+<line id="wa1tb" x1="330" y1="190" x2="330" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<!-- Trafo1 TB -->
+<circle cx="330" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="330" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="330" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="330" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">1</text>
+<line id="wt1tb" x1="330" y1="270" x2="330" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(330,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 1</text>
+</g>
+<line id="wl1tb" x1="330" y1="302" x2="330" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- GEN2 TB (x=570) -->
+<circle cx="570" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="570" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="570" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="570" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 2</text>
+<line id="wg2tb" x1="570" y1="122" x2="570" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(570,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 2</text>
+</g>
+<line id="wa2tb" x1="570" y1="190" x2="570" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<!-- Trafo2 TB -->
+<circle cx="570" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="570" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="570" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="570" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">2</text>
+<line id="wt2tb" x1="570" y1="270" x2="570" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(570,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wl2tb" x1="570" y1="302" x2="570" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- MVMDP GENSET BUS TB (x=150..750, y=330) -->
+<line id="mvbus-tb" x1="150" y1="330" x2="750" y2="330" stroke="#00f59b" stroke-width="8" filter="url(#gfx-green)"/>
+<text x="450" y="318" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="8" letter-spacing="2.5" font-weight="700" filter="url(#gfx-text)" opacity="0.95">MVMDP GENSET</text>
+<circle cx="330" cy="330" r="7" fill="#00f59b"/>
+<circle cx="570" cy="330" r="7" fill="#00f59b"/>
+
+<!-- Center tapping point from MVMDP to MVDP (x=450) -->
+<circle cx="450" cy="330" r="6" fill="#00f59b" opacity="0.85"/>
+<line id="wtb-center-drop" x1="450" y1="330" x2="450" y2="360" stroke="#00f59b" stroke-width="2.8"/>
+<!-- L3 breaker -->
+<g transform="translate(450,368)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 3</text>
+</g>
+<line id="wtb-l3-mid" x1="450" y1="385" x2="450" y2="410" stroke="#00f59b" stroke-width="2.8"/>
+<!-- L2 breaker -->
+<g transform="translate(450,418)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wtb-l2-mvdp" x1="450" y1="435" x2="450" y2="460" stroke="#00f59b" stroke-width="2.8"/>
+
+<!-- MVDP BUS TB (x=150..750, y=460) -->
+<line id="mvdp-bus-tb" x1="150" y1="460" x2="750" y2="460" stroke="#00f59b" stroke-width="4"/>
+<text x="200" y="448" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="7" font-weight="700" letter-spacing="1" opacity="0.8">MVDP</text>
+<circle cx="270" cy="460" r="6" fill="#00f59b"/>
+<circle cx="450" cy="460" r="6" fill="#00f59b"/>
+<circle cx="630" cy="460" r="6" fill="#00f59b"/>
+
+<!-- TB LV1 branch (x=270) -->
+<line id="wtb-tr1-top" x1="270" y1="460" x2="270" y2="510" stroke="#00f59b" stroke-width="2.8"/>
+<circle cx="270" cy="510" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="270" cy="532" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="270" y="507" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="270" y="520" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtb-tr1-bot" x1="270" y1="552" x2="270" y2="590" stroke="#00e5ff" stroke-width="2.2"/>
+<g transform="translate(270,578)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtb-lv1-in" x1="270" y1="595" x2="270" y2="622" stroke="#00e5ff" stroke-width="2.2"/>
+<!-- TB LV1 Panel Box -->
+<rect x="188" y="622" width="164" height="62" rx="5" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+<rect x="188" y="622" width="164" height="22" rx="5" fill="rgba(0,229,255,0.06)"/>
+<text x="270" y="638" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">TB LV 1</text>
+<text x="270" y="651" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Terminal Baru / 1</text>
+<rect x="188" y="676" width="164" height="38" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="198" y="690" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">V:</text>
+<text x="209" y="690" fill="#00e5ff" font-family="'JetBrains Mono'" font-size="8.5" font-weight="700" id="kv-tblv1-v">—</text>
+<text x="268" y="690" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">I:</text>
+<text x="279" y="690" fill="#00f59b" font-family="'JetBrains Mono'" font-size="8.5" font-weight="700" id="kv-tblv1-i">—</text>
+<text x="198" y="700" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="7.5" font-weight="700" id="kv-tblv1-p">— MW</text>
+<text x="198" y="710" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6.5" id="kv-tblv1-ts">TIMESTAMP: —</text>
+<g transform="translate(270,622)" onclick="selectFeeder('TBLV1')" style="cursor:pointer">
+  <circle r="0" fill="#00e5ff" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.2s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- TB LV2 branch (x=450) -->
+<line id="wtb-tr2-top" x1="450" y1="460" x2="450" y2="510" stroke="#00f59b" stroke-width="2.8"/>
+<circle cx="450" cy="510" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="450" cy="532" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="450" y="507" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="450" y="520" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtb-tr2-bot" x1="450" y1="552" x2="450" y2="590" stroke="#00e5ff" stroke-width="2.2"/>
+<g transform="translate(450,578)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtb-lv2-in" x1="450" y1="595" x2="450" y2="622" stroke="#00e5ff" stroke-width="2.2"/>
+<!-- TB LV2 Panel Box -->
+<rect x="368" y="622" width="164" height="62" rx="5" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+<rect x="368" y="622" width="164" height="22" rx="5" fill="rgba(0,229,255,0.06)"/>
+<text x="450" y="638" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">TB LV 2</text>
+<text x="450" y="651" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Terminal Baru / 2</text>
+<rect x="368" y="676" width="164" height="38" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="378" y="690" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">V:</text>
+<text x="389" y="690" fill="#00e5ff" font-family="'JetBrains Mono'" font-size="8.5" font-weight="700" id="kv-tblv2-v">—</text>
+<text x="448" y="690" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">I:</text>
+<text x="459" y="690" fill="#00f59b" font-family="'JetBrains Mono'" font-size="8.5" font-weight="700" id="kv-tblv2-i">—</text>
+<text x="378" y="700" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="7.5" font-weight="700" id="kv-tblv2-p">— MW</text>
+<text x="378" y="710" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6.5" id="kv-tblv2-ts">TIMESTAMP: —</text>
+<g transform="translate(450,622)" onclick="selectFeeder('TBLV2')" style="cursor:pointer">
+  <circle r="0" fill="#00e5ff" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.5s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- ST.KAI branch (x=630) -->
+<line id="wtb-tr3-top" x1="630" y1="460" x2="630" y2="510" stroke="#00f59b" stroke-width="2.8"/>
+<circle cx="630" cy="510" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="630" cy="532" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="630" y="507" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="630" y="520" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtb-tr3-bot" x1="630" y1="552" x2="630" y2="590" stroke="#00e5ff" stroke-width="2.2"/>
+<g transform="translate(630,578)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtb-stkai-in" x1="630" y1="595" x2="630" y2="622" stroke="#00e5ff" stroke-width="2.2"/>
+<!-- ST.KAI Panel Box -->
+<rect x="548" y="622" width="164" height="62" rx="5" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+<rect x="548" y="622" width="164" height="22" rx="5" fill="rgba(0,229,255,0.06)"/>
+<text x="630" y="638" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">ST. KAI</text>
+<text x="630" y="651" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Stasiun KAI</text>
+<rect x="548" y="676" width="164" height="38" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="558" y="690" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">RAW:</text>
+<text x="583" y="690" fill="#00e5ff" font-family="'JetBrains Mono'" font-size="8.5" font-weight="700" id="kv-stkai-v">—</text>
+<text x="628" y="690" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">STATUS:</text>
+<text x="558" y="700" fill="#00f59b" font-family="'JetBrains Mono'" font-size="7.5" font-weight="700" id="kv-stkai-i">—</text>
+<text x="558" y="700" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="7.5" font-weight="700" id="kv-stkai-p" style="display:none">—</text>
+<text x="558" y="710" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6.5" id="kv-stkai-ts">TIMESTAMP: —</text>
+<g transform="translate(630,622)" onclick="selectFeeder('STKAI')" style="cursor:pointer">
+  <circle r="0" fill="#00e5ff" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.8s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- ════════════════════════════════════════════
+     TERMINAL LAMA
+     GEN1 @ x=1230  GEN2 @ x=1470
+     Center @ x=1350
+     ════════════════════════════════════════════ -->
+
+<!-- GEN1 TL (x=1230) -->
+<circle cx="1230" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="1230" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="1230" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="1230" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 1</text>
+<line id="wg1tl" x1="1230" y1="122" x2="1230" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(1230,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 1</text>
+</g>
+<line id="wa1tl" x1="1230" y1="190" x2="1230" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<!-- Trafo1 TL -->
+<circle cx="1230" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="1230" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="1230" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="1230" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">1</text>
+<line id="wt1tl" x1="1230" y1="270" x2="1230" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(1230,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 1</text>
+</g>
+<line id="wl1tl" x1="1230" y1="302" x2="1230" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- GEN2 TL (x=1470) -->
+<circle cx="1470" cy="88" r="34" fill="#050f1e" stroke="#ff3860" stroke-width="2.5" filter="url(#gfx-red)"/>
+<text x="1470" y="82" text-anchor="middle" fill="#ff3860" font-family="'Orbitron',sans-serif" font-size="19" font-weight="900">G</text>
+<text x="1470" y="98" text-anchor="middle" fill="#ff3860" font-family="'JetBrains Mono'" font-size="13">~</text>
+<text x="1470" y="140" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="9" font-weight="600">GEN 2</text>
+<line id="wg2tl" x1="1470" y1="122" x2="1470" y2="162" stroke="#ff3860" stroke-width="2.5"/>
+<g transform="translate(1470,173)">
+  <rect x="-14" y="-11" width="28" height="22" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-8" y="-5" width="16" height="10" rx="2" fill="#ff3860"/>
+  <text x="0" y="27" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">ACB 2</text>
+</g>
+<line id="wa2tl" x1="1470" y1="190" x2="1470" y2="218" stroke="#ff3860" stroke-width="2.5"/>
+<!-- Trafo2 TL -->
+<circle cx="1470" cy="232" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2" filter="url(#gfx-amber)"/>
+<circle cx="1470" cy="252" r="18" fill="#050f1e" stroke="#fbbf24" stroke-width="2"/>
+<text x="1470" y="229" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="1470" y="242" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="9">2</text>
+<line id="wt2tl" x1="1470" y1="270" x2="1470" y2="297" stroke="#fbbf24" stroke-width="2.2"/>
+<g transform="translate(1470,285)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wl2tl" x1="1470" y1="302" x2="1470" y2="330" stroke="#ff3860" stroke-width="2.2"/>
+
+<!-- MVMDP GENSET BUS TL (x=1050..1650, y=330) -->
+<line id="mvbus-tl" x1="1050" y1="330" x2="1650" y2="330" stroke="#00f59b" stroke-width="8" filter="url(#gfx-green)"/>
+<text x="1350" y="318" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="8" letter-spacing="2.5" font-weight="700" filter="url(#gfx-text)" opacity="0.95">MVMDP GENSET</text>
+<circle cx="1230" cy="330" r="7" fill="#00f59b"/>
+<circle cx="1470" cy="330" r="7" fill="#00f59b"/>
+
+<!-- Center tapping TL (x=1350) -->
+<circle cx="1350" cy="330" r="6" fill="#00f59b" opacity="0.85"/>
+<line id="wtl-center-drop" x1="1350" y1="330" x2="1350" y2="360" stroke="#00f59b" stroke-width="2.8"/>
+<!-- L3 TL breaker -->
+<g transform="translate(1350,368)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 3</text>
+</g>
+<line id="wtl-l3-mid" x1="1350" y1="385" x2="1350" y2="410" stroke="#00f59b" stroke-width="2.8"/>
+<!-- L2 TL breaker -->
+<g transform="translate(1350,418)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#ff3860" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#ff3860"/>
+  <text x="0" y="25" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7.5">L 2</text>
+</g>
+<line id="wtl-l2-ctrl" x1="1350" y1="435" x2="1350" y2="458" stroke="#00f59b" stroke-width="2.8"/>
+
+<!-- TL LV 1 Arduino Controller Box (centered) -->
+<rect x="1280" y="458" width="140" height="36" rx="4" fill="#071e12" stroke="#00f59b" stroke-width="2.2"/>
+<text x="1350" y="473" text-anchor="middle" fill="#00f59b" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700" letter-spacing="1.5">TL LV 1</text>
+<text x="1350" y="486" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="6.5">Arduino · Sensor</text>
+<g transform="translate(1350,476)">
+  <circle r="0" fill="#00f59b" opacity="0"><animate attributeName="r" from="0" to="26" dur="2.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.22" to="0" dur="2.5s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- MVDP BUS TL (x=1050..1650, y=460) -->
+<line id="mvdp-bus-tl" x1="1050" y1="460" x2="1650" y2="460" stroke="#00f59b" stroke-width="4"/>
+<circle cx="1350" cy="460" r="6" fill="#00f59b"/>
+
+<!-- Wire from ctrl box bottom to MVDP bus -->
+<line id="wtl-ctrl-mvdp" x1="1350" y1="494" x2="1350" y2="460" stroke="#00f59b" stroke-width="2.8"/>
+
+<!-- Trafo TL (centered at x=1350, from MVDP down) -->
+<line id="wtl-tllv1-tr" x1="1350" y1="460" x2="1350" y2="516" stroke="#00e5ff" stroke-width="2.5"/>
+<circle cx="1350" cy="528" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2.2" filter="url(#gfx-amber)"/>
+<circle cx="1350" cy="550" r="20" fill="#050f1e" stroke="#fbbf24" stroke-width="2.2"/>
+<text x="1350" y="525" text-anchor="middle" fill="#fbbf24" font-family="'Orbitron',sans-serif" font-size="8.5" font-weight="700">T</text>
+<text x="1350" y="538" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="8">~</text>
+<line id="wtl-tr-lvmdp" x1="1350" y1="570" x2="1350" y2="608" stroke="#00e5ff" stroke-width="2.5"/>
+
+<!-- LVMDP BUS TL (x=1050..1650, y=608) -->
+<line id="lvbus-tl" x1="1050" y1="608" x2="1650" y2="608" stroke="#00e5ff" stroke-width="8" filter="url(#gfx-cyan)"/>
+<text x="1350" y="596" text-anchor="middle" fill="#00e5ff" font-family="'Orbitron',sans-serif" font-size="8" letter-spacing="2.5" font-weight="700" filter="url(#gfx-text)" opacity="0.9">LVMDP</text>
+<circle cx="1350" cy="608" r="7" fill="#00e5ff"/>
+
+<!-- TL LV1 Output drop -->
+<line id="wtl-lv1-out" x1="1350" y1="608" x2="1350" y2="645" stroke="#00e5ff" stroke-width="2.5"/>
+<g transform="translate(1350,633)">
+  <rect x="-11" y="-9" width="22" height="18" rx="3" fill="#050f1e" stroke="#00e5ff" stroke-width="1.8"/>
+  <rect x="-6" y="-4" width="12" height="9" rx="2" fill="#00e5ff"/>
+</g>
+<line id="wtl-lv1-panel" x1="1350" y1="648" x2="1350" y2="672" stroke="#00e5ff" stroke-width="2.2"/>
+
+<!-- TL LV1 Panel Box (centered at x=1350) -->
+<rect x="1268" y="672" width="164" height="62" rx="5" fill="#050f1e" stroke="#38bdf8" stroke-width="1.8"/>
+<rect x="1268" y="672" width="164" height="22" rx="5" fill="rgba(56,189,248,0.06)"/>
+<text x="1350" y="688" text-anchor="middle" fill="#38bdf8" font-family="'Orbitron',sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">TL LV 1</text>
+<text x="1350" y="701" text-anchor="middle" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">Panel Terminal Lama</text>
+<rect x="1268" y="726" width="164" height="38" rx="2" fill="#04101e" stroke="#0c1e3a"/>
+<text x="1278" y="740" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">V:</text>
+<text x="1289" y="740" fill="#38bdf8" font-family="'JetBrains Mono'" font-size="8.5" font-weight="700" id="kv-tllv1-v">—</text>
+<text x="1348" y="740" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="7">I:</text>
+<text x="1359" y="740" fill="#00f59b" font-family="'JetBrains Mono'" font-size="8.5" font-weight="700" id="kv-tllv1-i">—</text>
+<text x="1278" y="750" fill="#fbbf24" font-family="'JetBrains Mono'" font-size="7.5" font-weight="700" id="kv-tllv1-p">— MW</text>
+<text x="1278" y="760" fill="#2a4a72" font-family="'JetBrains Mono'" font-size="6.5" id="kv-tllv1-ts">TIMESTAMP: —</text>
+<g transform="translate(1350,672)" onclick="selectFeeder('TLLV1')" style="cursor:pointer">
+  <circle r="0" fill="#38bdf8" opacity="0"><animate attributeName="r" from="0" to="20" dur="2.0s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.35" to="0" dur="2.0s" repeatCount="indefinite"/></circle>
+</g>
+
+<!-- ═══════════ LEGEND ═══════════ -->
+<rect x="50" y="770" width="330" height="148" rx="6" fill="#040c1a" stroke="#0c2040" stroke-width="1.5"/>
+<rect x="50" y="770" width="330" height="24" rx="6" fill="#050f1e"/>
+<text x="66" y="786" fill="#1e3f70" font-family="'Orbitron',sans-serif" font-size="8" font-weight="700" letter-spacing="2">KETERANGAN / LEGEND</text>
+<line x1="66" y1="806" x2="100" y2="806" stroke="#ff3860" stroke-width="3" stroke-dasharray="7 3"/>
+<text x="110" y="810" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">Genset Feed (ACB / T / L)</text>
+<line x1="66" y1="826" x2="100" y2="826" stroke="#fbbf24" stroke-width="2.5" stroke-dasharray="7 3"/>
+<text x="110" y="830" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">Trafo Feed</text>
+<line x1="66" y1="846" x2="100" y2="846" stroke="#00f59b" stroke-width="6"/>
+<text x="110" y="850" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">MVMDP GENSET Bus</text>
+<line x1="66" y1="866" x2="100" y2="866" stroke="#00f59b" stroke-width="2.8" stroke-dasharray="7 3"/>
+<text x="110" y="870" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">MV Feeder (L1 / L2 / L3)</text>
+<line x1="66" y1="886" x2="100" y2="886" stroke="#00e5ff" stroke-width="6"/>
+<text x="110" y="890" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">LVMDP Bus (380 V)</text>
+<line x1="66" y1="906" x2="100" y2="906" stroke="#00e5ff" stroke-width="2.2" stroke-dasharray="7 3"/>
+<text x="110" y="910" fill="#4a6d9a" font-family="'JetBrains Mono'" font-size="8.5">LV Feeder (380 V)</text>
+
+<!-- Footer -->
+<text x="900" y="930" text-anchor="middle" fill="#0c1e3a" font-family="'JetBrains Mono'" font-size="8">BANDARA INTERNASIONAL ADI SOEMARMO · SCADA SLD · REV 2026-D · POWER COMMAND CENTER</text>
+</svg>
+        </div>
+      </div>
+    </div><!-- end sld-canvas -->
+
+    <!-- DATABASE PANEL -->
+    <div id="db-panel">
+      <div id="db-tabs">
+        <div class="db-tab active" id="dbtab-TBLV1" onclick="switchDbTab('TBLV1')">TB LV 1</div>
+        <div class="db-tab" id="dbtab-TBLV2" onclick="switchDbTab('TBLV2')">TB LV 2</div>
+        <div class="db-tab" id="dbtab-STKAI" onclick="switchDbTab('STKAI')">ST. KAI</div>
+        <div class="db-tab" id="dbtab-TLLV1" onclick="switchDbTab('TLLV1')">TL LV 1</div>
+        <div style="flex:1;"></div>
+        <div style="display:flex;align-items:center;padding:0 14px;gap:10px;">
+          <span style="font-size:8px;color:var(--muted2);font-family:'JetBrains Mono'" id="db-row-info">— baris</span>
+          <button class="ctrl-btn" onclick="manualRefresh()" style="font-size:7.5px;padding:3px 10px;">↻ REFRESH</button>
+        </div>
+      </div>
+      <div id="db-content">
+        <div class="db-loading" id="db-loading"><div class="spin"></div><span>Memuat data dari spreadsheet...</span></div>
+        <div id="db-table-container" style="display:none;"></div>
+      </div>
+    </div><!-- end db-panel -->
+
+  </div><!-- end center-area -->
+
+  <!-- RIGHT SIDEBAR -->
+  <div id="right-sidebar">
+    <div class="rs-section">
+      <div class="rs-header">▸ ALARM / EVENT LOG</div>
+    <div id="alarm-log">
+      </div>
+    </div>
+    <div class="rs-section">
+      <div class="rs-header">▸ LIVE MEASUREMENT</div>
+      <div class="kv-grid">
+        <div class="kv-cell"><div class="kv-lbl">TB LV-1 · V</div><div><span class="kv-val" id="rv-tblv1v">—</span><span class="kv-unit"> V</span></div></div>
+        <div class="kv-cell"><div class="kv-lbl">TB LV-1 · I</div><div><span class="kv-val" id="rv-tblv1i">—</span><span class="kv-unit"> A</span></div></div>
+        <div class="kv-cell"><div class="kv-lbl">TB LV-2 · V</div><div><span class="kv-val" id="rv-tblv2v">—</span><span class="kv-unit"> V</span></div></div>
+        <div class="kv-cell"><div class="kv-lbl">TB LV-2 · I</div><div><span class="kv-val" id="rv-tblv2i">—</span><span class="kv-unit"> A</span></div></div>
+        <div class="kv-cell"><div class="kv-lbl">ST. KAI · RAW</div><div><span class="kv-val" id="rv-stkaiv">—</span></div></div>
+        <div class="kv-cell"><div class="kv-lbl">ST. KAI · STATUS</div><div><span class="kv-val" id="rv-stkai-i" style="font-size:7.5px;color:var(--green)">—</span></div></div>
+        <div class="kv-cell"><div class="kv-lbl">TL LV-1 · V</div><div><span class="kv-val" id="rv-tllv1v" style="color:var(--cyan2)">—</span><span class="kv-unit"> V</span></div></div>
+        <div class="kv-cell"><div class="kv-lbl">TL LV-1 · I</div><div><span class="kv-val" id="rv-tllv1i" style="color:var(--cyan2)">—</span><span class="kv-unit"> A</span></div></div>
+      </div>
+    </div>
+    <div class="rs-section">
+      <div class="rs-header">▸ POWER BALANCE</div>
+      <div style="padding:11px 14px;">
+        <div class="sum-row"><span class="sum-label">GENERATION</span><span class="sum-val" style="color:var(--gen)" id="pb-gen">— MW</span></div>
+        <div class="sum-row"><span class="sum-label">CONSUMPTION</span><span class="sum-val" style="color:var(--lv)" id="pb-cons">— MW</span></div>
+        <div style="height:1px;background:var(--border);margin:7px 0;"></div>
+        <div class="sum-row"><span class="sum-label">BALANCE</span><span class="sum-val" style="color:var(--green)" id="pb-bal">±—</span></div>
+      </div>
+    </div>
+    <div class="rs-section" style="flex:1;">
+      <div class="rs-header">▸ CB STATUS</div>
+      <div style="padding:9px 13px;font-size:8.5px;display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;justify-content:space-between;color:var(--muted2);border-bottom:1px solid var(--border);padding-bottom:5px;font-size:7.5px;">
+          <span>BREAKER</span><span>STATUS</span><span>I (A)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--gen)">ACB1-TB</span><span style="color:var(--green)">CLOSED</span><span id="cbs-acb1tb" style="color:var(--green)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--gen)">ACB2-TB</span><span style="color:var(--green)">CLOSED</span><span id="cbs-acb2tb" style="color:var(--green)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--gen)">ACB1-TL</span><span style="color:var(--green)">CLOSED</span><span id="cbs-acb1tl" style="color:var(--green)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--gen)">ACB2-TL</span><span style="color:var(--green)">CLOSED</span><span id="cbs-acb2tl" style="color:var(--green)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--mv)">L3-TB</span><span style="color:var(--green)">CLOSED</span><span id="cbs-l3tb" style="color:var(--mv)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--mv)">L2-TB</span><span style="color:var(--green)">CLOSED</span><span id="cbs-l2tb" style="color:var(--mv)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--mv)">L3-TL</span><span style="color:var(--green)">CLOSED</span><span id="cbs-l3tl" style="color:var(--mv)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--mv)">L2-TL</span><span style="color:var(--green)">CLOSED</span><span id="cbs-l2tl" style="color:var(--mv)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--lv)">TB LV-1</span><span style="color:var(--green)">CLOSED</span><span id="cbs-tblv1" style="color:var(--lv)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--lv)">TB LV-2</span><span style="color:var(--green)">CLOSED</span><span id="cbs-tblv2" style="color:var(--lv)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--lv)">ST. KAI</span><span style="color:var(--green)">CLOSED</span><span id="cbs-stkai" style="color:var(--lv)">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--cyan2)">TL LV-1</span><span style="color:var(--green)">CLOSED</span><span id="cbs-tllv1" style="color:var(--cyan2)">—</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// KONFIGURASI GOOGLE SHEETS
+// ═══════════════════════════════════════════════════════════
+const SHEETS_CONFIG = {
+  SPREADSHEET_ID: '1gIoMevcxZicCCq-rTlxMzzAwVBqDJyUWT9BeEujwRIQ',
+  REFRESH_INTERVAL: 1000,
+  SHEETS: {
+    TBLV1: 'LV_BARU_1',
+    TBLV2: 'LV_BARU_2',
+    STKAI: 'KAI',
+    TLLV1: 'LV_LAMA',
+  },
+  // Panel KAI hanya memiliki TIME, STATUS_RAW, STATUS_TEXT (tidak ada V/I/P)
+  PANEL_TYPE: {
+    TBLV1: 'power',
+    TBLV2: 'power',
+    STKAI: 'status',  // KAI: TIME + STATUS_RAW + STATUS_TEXT saja
+    TLLV1: 'power',
+  },
+  COL_MAP: {
+    timestamp:   ['time','timestamp','waktu','datetime','tanggal','date','tgl'],
+    v:           ['voltage','volt','v','tegangan','volt_v','kv','v_line','vrms','v_avg','voltage_v'],
+    i:           ['current','ampere','ampere_a','arus','i','i_line','irms','i_avg','a','current_a'],
+    p:           ['power','daya','watt','kw','mw','p','kva','kw_total','p_total','daya_aktif','power_kw','power_mw'],
+    status_raw:  ['status_raw','statusraw','raw','status'],
+    status_text: ['status_text','statustext','text','keterangan','status_teks'],
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const STATE = {
+  animPaused: false,
+  zoom: 1, tx: 0, ty: 0,
+  dragging: false, sx: 0, sy: 0,
+  dbMode: 'connecting',
+  lastUpdate: null,
+  retryCount: 0,
+  currentView: 'sld',     // 'sld' | 'db'
+  currentDbTab: 'TBLV1',  // active sheet in db view
+  // Cache semua rows per sheet
+  allRows: { TBLV1: null, TBLV2: null, STKAI: null, TLLV1: null },
+  allHeaders: { TBLV1: null, TBLV2: null, STKAI: null, TLLV1: null },
+};
+
+const WIRES = {
+  gen:   ['wg1tb','wa1tb','wg2tb','wa2tb','wg1tl','wa1tl','wg2tl','wa2tl'],
+  trafo: ['wt1tb','wt2tb','wt1tl','wt2tl'],
+  mv:    ['wl1tb','wl2tb','mvbus-tb','wtb-center-drop','wtb-l3-mid','wtb-l2-mvdp',
+          'mvdp-bus-tb','wtb-tr1-top','wtb-tr2-top','wtb-tr3-top',
+          'wl1tl','wl2tl','mvbus-tl','wtl-center-drop','wtl-l3-mid','wtl-l2-ctrl',
+          'mvdp-bus-tl','wtl-ctrl-mvdp'],
+  lv:    ['wtb-tr1-bot','wtb-lv1-in','wtb-tr2-bot','wtb-lv2-in','wtb-tr3-bot','wtb-stkai-in',
+          'wtl-tllv1-tr','wtl-tr-lvmdp','lvbus-tl','wtl-lv1-out','wtl-lv1-panel']
+};
+
+// ═══════════════════════════════════════════════════════════
+// UTILITY
+// ═══════════════════════════════════════════════════════════
+function set(id, val) {
+  const e = document.getElementById(id);
+  if (e) e.textContent = val;
+}
+
+function showToast(msg, type = 'ok', duration = 4000) {
+  const t = document.getElementById('toast');
+  const item = document.createElement('div');
+  item.className = `toast-item toast-${type}`;
+  item.textContent = msg;
+  t.appendChild(item);
+  setTimeout(() => item.remove(), duration);
+}
+
+function addAlarm(msg, color = '#00f59b') {
+  const log = document.getElementById('alarm-log');
+  const now = new Date().toLocaleTimeString('id-ID', {hour12:false});
+  const item = document.createElement('div');
+  item.className = 'alarm-item';
+  item.innerHTML = `<div class="alarm-dot" style="background:${color};box-shadow:0 0 6px ${color};"></div>
+    <div><div class="alarm-text">${msg}</div><span class="alarm-time">${now}</span></div>`;
+  log.insertBefore(item, log.firstChild);
+  while (log.children.length > 12) log.removeChild(log.lastChild);
+}
+
+function setDbStatus(mode, text) {
+  STATE.dbMode = mode;
+  const el = document.getElementById('db-status');
+  const dot = el.querySelector('.db-dot');
+  const txt = document.getElementById('db-status-text');
+  el.className = `db-status ${mode}`;
+  txt.textContent = text;
+  dot.classList.toggle('pulse', mode !== 'live');
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIEW SWITCHER (SLD ↔ DATABASE)
+// ═══════════════════════════════════════════════════════════
+function showView(view) {
+  STATE.currentView = view;
+  const sldCanvas = document.getElementById('sld-canvas');
+  const dbPanel   = document.getElementById('db-panel');
+  const btnSld    = document.getElementById('btn-sld');
+  const btnDb     = document.getElementById('btn-db');
+
+  if (view === 'sld') {
+    sldCanvas.classList.remove('hidden');
+    dbPanel.classList.remove('visible');
+    btnSld.classList.add('active-tab');
+    btnDb.classList.remove('active-tab');
+  } else {
+    sldCanvas.classList.add('hidden');
+    dbPanel.classList.add('visible');
+    btnSld.classList.remove('active-tab');
+    btnDb.classList.add('active-tab');
+    renderDbTable(STATE.currentDbTab);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DATABASE TAB SWITCHER
+// ═══════════════════════════════════════════════════════════
+function switchDbTab(panelId) {
+  STATE.currentDbTab = panelId;
+  document.querySelectorAll('.db-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById(`dbtab-${panelId}`);
+  if (tab) tab.classList.add('active');
+  renderDbTable(panelId);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER DATABASE TABLE (semua baris, terbaru di bawah)
+// ═══════════════════════════════════════════════════════════
+function renderDbTable(panelId) {
+  const container = document.getElementById('db-table-container');
+  const loading   = document.getElementById('db-loading');
+  const rows      = STATE.allRows[panelId];
+  const headers   = STATE.allHeaders[panelId];
+
+  if (!rows || !headers) {
+    container.style.display = 'none';
+    loading.style.display   = 'flex';
+    loading.innerHTML       = '<div class="spin"></div><span>Memuat data dari spreadsheet...</span>';
+    return;
+  }
+
+  loading.style.display   = 'none';
+  container.style.display = 'block';
+
+  const dataRows   = rows.slice(1).filter(r => r.some(c => c !== ''));
+  const totalRows  = dataRows.length;
+  const sheetName  = SHEETS_CONFIG.SHEETS[panelId];
+
+  // Identify column types for coloring
+  const colIdx  = buildColIndex(headers);
+  const tsPos   = colIdx.timestamp;
+  const vPos    = colIdx.v;
+  const iPos    = colIdx.i;
+  const pPos    = colIdx.p;
+
+  const nowStr  = STATE.lastUpdate ? STATE.lastUpdate.toLocaleTimeString('id-ID', {hour12:false}) : '—';
+  const statusOk = STATE.dbMode === 'live' || STATE.dbMode === 'live';
+
+  set('db-row-info', `${totalRows} baris · sheet: ${sheetName}`);
+
+  let html = `
+  <div class="db-meta">
+    <span>
+      <span class="db-badge ${statusOk ? 'live' : 'err'}">${statusOk ? 'LIVE' : 'ERROR'}</span>
+      Sheet: <b style="color:var(--cyan2)">${sheetName}</b> &nbsp;·&nbsp; ${totalRows} baris data &nbsp;·&nbsp; Update: ${nowStr}
+    </span>
+    <span style="color:var(--muted2);font-size:7.5px;">Data terbaru di baris paling bawah ↓</span>
+  </div>
+  <div class="db-table-wrap">
+  <table class="db-tbl">
+  <thead><tr>
+    <th class="db-row-num">#</th>`;
+
+  headers.forEach((h, hi) => {
+    let cls = '';
+    if (hi === vPos) cls = 'style="color:var(--cyan)"';
+    else if (hi === iPos) cls = 'style="color:var(--green)"';
+    else if (hi === pPos) cls = 'style="color:var(--amber)"';
+    else if (hi === tsPos) cls = 'style="color:var(--muted2)"';
+    html += `<th ${cls}>${h || `Col${hi+1}`}</th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  // Render semua baris — terbaru di bawah
+  dataRows.forEach((row, ri) => {
+    const isLatest = ri === dataRows.length - 1;
+    html += `<tr class="${isLatest ? 'latest-row' : ''}">`;
+    html += `<td class="db-row-num">${ri + 1}${isLatest ? ' ★' : ''}</td>`;
+    row.forEach((cell, ci) => {
+      let cls = '';
+      if (ci === tsPos) cls = 'col-ts';
+      else if (ci === vPos) cls = 'col-v';
+      else if (ci === iPos) cls = 'col-i';
+      else if (ci === pPos) cls = 'col-p';
+      html += `<td class="${cls}">${cell || '—'}</td>`;
+    });
+    // Pad missing cells
+    for (let ci = row.length; ci < headers.length; ci++) {
+      html += `<td>—</td>`;
+    }
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+
+  // Auto-scroll ke baris terbaru (paling bawah)
+  setTimeout(() => {
+    const wrap = container.querySelector('.db-table-wrap');
+    if (wrap) wrap.scrollTop = wrap.scrollHeight;
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════
+function tick() {
+  const d = new Date();
+  const m = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES'];
+  set('clock-display', d.toLocaleTimeString('id-ID', {hour12:false}));
+  set('date-display', `${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear()}`);
+}
+tick();
+setInterval(tick, 1000);
+
+// ═══════════════════════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.map(line => {
+    const result = [];
+    let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQuote = !inQuote; }
+      else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    result.push(cur.trim());
+    return result;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// COLUMN MAPPING
+// ═══════════════════════════════════════════════════════════
+function buildColIndex(headers) {
+  const norm = h => h.toString().toLowerCase().trim().replace(/\s+/g,'_');
+  const normH = headers.map(norm);
+  const idx = {};
+  Object.entries(SHEETS_CONFIG.COL_MAP).forEach(([field, aliases]) => {
+    for (const alias of aliases) {
+      const an = norm(alias);
+      let pos = normH.indexOf(an);
+      if (pos === -1) pos = normH.findIndex(h => h.includes(an) || an.includes(h));
+      if (pos !== -1) { idx[field] = pos; break; }
+    }
+  });
+  return idx;
+}
+
+function getColVal(row, colIdx, field) {
+  const pos = colIdx[field];
+  if (pos === undefined || pos >= row.length) return null;
+  const v = parseFloat(row[pos]);
+  return isNaN(v) ? null : v;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FETCH SHEET — CSV then GViz fallback
+// ═══════════════════════════════════════════════════════════
+async function fetchSheetCSV(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.SPREADSHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url, {cache:'no-store'});
+  if (!res.ok) throw new Error(`CSV ${res.status}`);
+  const text = await res.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error('CSV empty');
+  return rows;
+}
+
+async function fetchSheetGViz(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url, {cache:'no-store'});
+  if (!res.ok) throw new Error(`GViz ${res.status}`);
+  const text = await res.text();
+  const jsonStr = text.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, '');
+  const data = JSON.parse(jsonStr);
+  if (!data.table) throw new Error('GViz no table');
+  const headers = data.table.cols.map(c => c.label || c.id || '');
+  const rows = [headers];
+  (data.table.rows || []).forEach(row => {
+    rows.push(row.c.map(cell => (cell && cell.v != null) ? String(cell.v) : ''));
+  });
+  return rows;
+}
+
+async function fetchSheet(sheetName) {
+  try { return await fetchSheetCSV(sheetName); }
+  catch (e) {
+    console.warn(`[SCADA] CSV gagal "${sheetName}", coba GViz:`, e.message);
+    return await fetchSheetGViz(sheetName);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// EKSTRAK DATA TERBARU (baris terakhir non-kosong)
+// Mendukung panel tipe 'power' (V/I/P) dan 'status' (TIME/STATUS_RAW/STATUS_TEXT)
+// ═══════════════════════════════════════════════════════════
+function extractLatest(rows, panelId) {
+  const headers = rows[0];
+  const colIdx = buildColIndex(headers);
+  const panelType = SHEETS_CONFIG.PANEL_TYPE[panelId] || 'power';
+
+  let latestRow = null;
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i].some(c => c !== '')) { latestRow = rows[i]; break; }
+  }
+  if (!latestRow) throw new Error('No data rows');
+
+  // Ambil timestamp (berlaku untuk semua tipe panel)
+  let ts = null;
+  if (colIdx.timestamp !== undefined) {
+    const rawTs = latestRow[colIdx.timestamp];
+    if (rawTs && rawTs.trim() !== '') ts = rawTs.trim();
+  }
+  if (!ts) {
+    for (let ci = 0; ci < latestRow.length; ci++) {
+      const val = latestRow[ci];
+      if (val && /\d{1,2}[\/\-:]\d{1,2}/.test(val)) { ts = val.trim(); break; }
+    }
+  }
+
+  // Panel tipe STATUS (KAI): hanya TIME, STATUS_RAW, STATUS_TEXT
+  if (panelType === 'status') {
+    let statusRaw  = null;
+    let statusText = null;
+    if (colIdx.status_raw !== undefined)  statusRaw  = latestRow[colIdx.status_raw]  || null;
+    if (colIdx.status_text !== undefined) statusText = latestRow[colIdx.status_text] || null;
+    // Normalkan STATUS_RAW jadi angka jika bisa
+    const rawNum = statusRaw !== null ? parseFloat(statusRaw) : null;
+    return {
+      v: null, i: null, p: null, ts,
+      _type: 'status',
+      statusRaw:  isNaN(rawNum) ? statusRaw : rawNum,
+      statusText: statusText,
+    };
+  }
+
+  // Panel tipe POWER: V / I / P
+  const v = getColVal(latestRow, colIdx, 'v');
+  const i = getColVal(latestRow, colIdx, 'i');
+  let   p = getColVal(latestRow, colIdx, 'p');
+
+  if (p !== null && p > 100) p = p / 1000; // kW → MW
+  if (p === null && v !== null && i !== null) {
+    p = (Math.sqrt(3) * v * i * 0.93) / 1e6;
+  }
+
+  return { v, i, p, ts, _type: 'power' };
+}
+
+// ═══════════════════════════════════════════════════════════
+// UPDATE STATUS DOT
+// ═══════════════════════════════════════════════════════════
+function updateFeederStatus(panelId, d, isConnected) {
+  const fc = document.getElementById(`fc-${panelId}`);
+  if (!fc) return;
+  const dot = fc.querySelector('.fc-dot');
+  const lbl = fc.querySelector('.fc-label');
+  if (!dot) return;
+
+  // Panel STATUS (KAI): gunakan STATUS_RAW / STATUS_TEXT
+  if (d && d._type === 'status') {
+    if (!isConnected) {
+      dot.style.background = 'var(--red)';
+      dot.style.boxShadow  = '0 0 7px var(--red)';
+      if (lbl) lbl.textContent = 'OFFLINE · ERROR';
+    } else {
+      // STATUS_RAW 0 = CLOSE/NORMAL (hijau), selainnya = amber/warning
+      const isNormal = d.statusRaw === 0 || (typeof d.statusText === 'string' && d.statusText.toUpperCase().includes('NORMAL'));
+      dot.style.background = isNormal ? 'var(--green)' : 'var(--amber)';
+      dot.style.boxShadow  = isNormal ? '0 0 7px var(--green)' : '0 0 7px var(--amber)';
+      if (lbl) lbl.textContent = d.statusText ? d.statusText.toUpperCase() : (isNormal ? 'NORMAL' : 'WARNING');
+    }
+    return;
+  }
+
+  // Panel POWER: gunakan I
+  const powerOff = !isConnected || d.i === null || d.i === 0;
+  if (powerOff) {
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow  = '0 0 7px var(--red)';
+    if (lbl) lbl.textContent = isConnected ? 'ARUS NOL · OFF' : 'OFFLINE · ERROR';
+  } else {
+    dot.style.background = 'var(--green)';
+    dot.style.boxShadow  = '0 0 7px var(--green)';
+    if (lbl) lbl.textContent = 'AKTIF · ' + (d.v ? `${d.v.toFixed(0)} V` : '380 V');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// APPLY DATA TO UI
+// ═══════════════════════════════════════════════════════════
+function applyData(panelData) {
+  const panels = { TBLV1: panelData.TBLV1, TBLV2: panelData.TBLV2, STKAI: panelData.STKAI, TLLV1: panelData.TLLV1 };
+  const panelMap = {
+    TBLV1: { kvV:'kv-tblv1-v', kvI:'kv-tblv1-i', kvP:'kv-tblv1-p', kvTs:'kv-tblv1-ts', rvV:'rv-tblv1v', rvI:'rv-tblv1i', cbs:'cbs-tblv1' },
+    TBLV2: { kvV:'kv-tblv2-v', kvI:'kv-tblv2-i', kvP:'kv-tblv2-p', kvTs:'kv-tblv2-ts', rvV:'rv-tblv2v', rvI:'rv-tblv2i', cbs:'cbs-tblv2' },
+    STKAI: { kvV:'kv-stkai-v',  kvI:'kv-stkai-i',  kvP:'kv-stkai-p',  kvTs:'kv-stkai-ts',  rvV:'rv-stkaiv', rvI:'rv-stkai-i', cbs:'cbs-stkai' },
+    TLLV1: { kvV:'kv-tllv1-v', kvI:'kv-tllv1-i', kvP:'kv-tllv1-p', kvTs:'kv-tllv1-ts', rvV:'rv-tllv1v', rvI:'rv-tllv1i', cbs:'cbs-tllv1' }
+  };
+
+  let totalP = 0;
+  Object.entries(panels).forEach(([id, d]) => {
+    const m = panelMap[id];
+    const connected = d && !d._error;
+    const safeD = d || {v:null,i:null,p:null,_type:'power'};
+    const isStatusPanel = safeD._type === 'status';
+
+    updateFeederStatus(id, safeD, connected);
+
+    if (isStatusPanel) {
+      // ── Panel STATUS (KAI): tampilkan STATUS_RAW dan STATUS_TEXT ──
+      const rawNum  = connected && safeD.statusRaw  !== null ? safeD.statusRaw  : '—';
+      const rawText = connected && safeD.statusText ? safeD.statusText : '—';
+      const tsVal   = connected && safeD.ts ? safeD.ts : '—';
+
+      // Tulis ke SVG: baris V diganti rawNum, baris I diganti status text
+      set(m.kvV, `${rawNum}`);          // status_raw value
+      set(m.kvI, rawText);              // status_text value
+      set(m.kvP, '— MW');              // tidak ada power
+      set(m.kvTs, 'TIMESTAMP: ' + tsVal);
+
+      // Sidebar live measurement
+      set(m.rvV, `${rawNum}`);
+      set(m.rvI, rawText);
+      set(m.cbs, '—');
+
+      // Sidebar feeder card
+      set(`fv-${id}`, '— MW');
+      set(`fm-${id}`, `RAW:${rawNum} · ${rawText}`);
+      const fb = document.getElementById(`fb-${id}`);
+      if (fb) fb.style.width = (rawNum === 0 || rawNum === '0') ? '100%' : '20%';
+
+      // Ubah label V/I di SVG untuk panel KAI agar tepat
+      const elV = document.getElementById(m.kvV);
+      const elI = document.getElementById(m.kvI);
+      // Warna sesuai status
+      const isNormal = rawNum === 0 || (typeof rawText === 'string' && rawText.toUpperCase().includes('NORMAL'));
+      if (elI) elI.style.fill = isNormal ? 'var(--green)' : 'var(--amber)';
+
+    } else {
+      // ── Panel POWER: V / I / P ──
+      const hasV = connected && safeD.v !== null;
+      const hasI = connected && safeD.i !== null;
+      const hasP = connected && safeD.p !== null;
+      const vStr = hasV ? `${safeD.v.toFixed(1)}V` : '—';
+      const iStr = hasI ? `${safeD.i.toFixed(1)}A` : '—';
+      const pStr = hasP ? `${safeD.p.toFixed(4)} MW` : '— MW';
+
+      set(`fv-${id}`, pStr);
+      set(`fm-${id}`, `${vStr} · ${iStr}`);
+      const fb = document.getElementById(`fb-${id}`);
+      if (fb && hasP) fb.style.width = `${Math.min(100,(safeD.p/0.15)*100).toFixed(0)}%`;
+      else if (fb) fb.style.width = '0%';
+
+      set(m.kvV, vStr); set(m.kvI, iStr); set(m.kvP, pStr);
+      set(m.rvV, hasV ? safeD.v.toFixed(1) : '—');
+      set(m.rvI, hasI ? safeD.i.toFixed(1) : '—');
+      set(m.cbs, hasI ? safeD.i.toFixed(0) : '—');
+      set(m.kvTs, 'TIMESTAMP: ' + (connected && safeD.ts ? safeD.ts : '—'));
+
+      if (hasP) totalP += safeD.p;
+    }
+  });
+
+  const genTotal = (totalP * 1.025).toFixed(4);
+  const bal = `±${(Math.abs(totalP*0.025)).toFixed(4)}`;
+  const tblv1 = panelData.TBLV1 || {}; const tblv2 = panelData.TBLV2 || {}; const tllv1 = panelData.TLLV1 || {};
+  ['cbs-acb1tb','cbs-acb2tb'].forEach(id => set(id, (tblv1.i||tblv2.i) ? (((tblv1.i||0)/2)+((tblv2.i||0)/2)).toFixed(0) : '—'));
+  ['cbs-acb1tl','cbs-acb2tl'].forEach(id => set(id, tllv1.i ? (tllv1.i/2).toFixed(0) : '—'));
+  set('cbs-l3tb', tblv1.i ? tblv1.i.toFixed(0) : '—');
+  set('cbs-l2tb', tblv2.i ? tblv2.i.toFixed(0) : '—');
+  set('cbs-l3tl', tllv1.i ? tllv1.i.toFixed(0) : '—');
+  set('cbs-l2tl', tllv1.i ? tllv1.i.toFixed(0) : '—');
+  set('fv-GEN1TB', `${(parseFloat(genTotal)/4).toFixed(4)} MW`);
+  set('fv-GEN2TB', `${(parseFloat(genTotal)/4).toFixed(4)} MW`);
+  set('fv-GEN1TL', `${(parseFloat(genTotal)/4).toFixed(4)} MW`);
+  set('fv-GEN2TL', `${(parseFloat(genTotal)/4).toFixed(4)} MW`);
+  set('sys-mw', totalP.toFixed(4));
+  set('pb-gen', `${genTotal} MW`); set('pb-gen2', `${genTotal} MW`);
+  set('pb-cons', `${totalP.toFixed(4)} MW`); set('pb-cons2', `${totalP.toFixed(4)} MW`);
+  set('pb-bal', bal); set('pb-bal2', bal);
+  const now = new Date();
+  STATE.lastUpdate = now;
+  set('refresh-info', `Last update: ${now.toLocaleTimeString('id-ID', {hour12:false})}`);
+  animateWires();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN FETCH SEMUA SHEET (Promise.allSettled)
+// Simpan SEMUA rows ke STATE.allRows agar bisa ditampilkan di DB view
+// ═══════════════════════════════════════════════════════════
+let isFirstFetch = true;
+
+async function fetchAndUpdate() {
+  const sheetMap  = SHEETS_CONFIG.SHEETS;
+  const panelIds  = Object.keys(sheetMap);
+
+  const results = await Promise.allSettled(
+    panelIds.map(pid => fetchSheet(sheetMap[pid]))
+  );
+
+  const panelData = {};
+  let anySuccess = false, anyError = false;
+
+  results.forEach((res, idx) => {
+    const pid = panelIds[idx];
+    if (res.status === 'fulfilled') {
+      try {
+        const rows = res.value;
+        // Simpan seluruh rows untuk database view
+        STATE.allRows[pid]    = rows;
+        STATE.allHeaders[pid] = rows[0];
+        panelData[pid] = extractLatest(rows, pid);
+        anySuccess = true;
+      } catch (e) {
+        console.warn(`[SCADA] Parse gagal ${pid}:`, e.message);
+        panelData[pid] = {v:null,i:null,p:null,_error:true};
+        anyError = true;
+      }
+    } else {
+      console.warn(`[SCADA] Fetch gagal ${pid}:`, res.reason?.message);
+      panelData[pid] = {v:null,i:null,p:null,_error:true};
+      anyError = true;
+    }
+  });
+
+  if (anySuccess && !anyError) {
+    if (STATE.dbMode !== 'live') {
+      setDbStatus('live', 'LIVE · DB');
+      if (!isFirstFetch) showToast('✓ Semua panel terhubung ke database', 'ok');
+      // Hapus semua item "Menghubungkan..." dari log
+      const log = document.getElementById('alarm-log');
+      if (log) {
+        Array.from(log.querySelectorAll('.alarm-item')).forEach(item => {
+          if (item.textContent.includes('Menghubungkan')) item.remove();
+        });
+      }
+      addAlarm('Semua sheet terhubung (CSV/GViz)', '#00f59b');
+    }
+    STATE.retryCount = 0;
+  } else if (anySuccess && anyError) {
+    setDbStatus('live', 'LIVE · PARSIAL');
+    if (isFirstFetch) addAlarm('Beberapa panel gagal dimuat', '#fbbf24');
+  } else {
+    STATE.retryCount++;
+    if (STATE.retryCount === 1) {
+      setDbStatus('error', 'ERROR · RETRY');
+      showToast('⚠ Semua sheet gagal. Memeriksa koneksi...', 'warn', 6000);
+      addAlarm('Koneksi database terputus', '#ff3860');
+    }
+    if (STATE.retryCount >= 3 && STATE.dbMode !== 'fallback') {
+      setDbStatus('fallback', 'FALLBACK MODE');
+      showToast('⚠ Menggunakan simulasi (periksa akses spreadsheet)', 'warn', 8000);
+      addAlarm('Mode fallback — simulasi aktif', '#ff3860');
+      runSimulation();
+      isFirstFetch = false;
+      return;
+    }
+    applyData(panelData);
+    isFirstFetch = false;
+    return;
+  }
+
+  applyData(panelData);
+
+  isFirstFetch = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SIMULASI FALLBACK
+// ═══════════════════════════════════════════════════════════
+function sim(baseI, baseV = 380) {
+  const v = baseV + (Math.random()*6 - 3);
+  const i = baseI + (Math.random()*8 - 4);
+  const pf = 0.93 + Math.random()*0.05;
+  const p = (Math.sqrt(3)*v*i*pf)/1e6;
+  return {v,i,p};
+}
+
+function runSimulation() {
+  const now = new Date().toLocaleString('id-ID');
+  const panelData = {
+    TBLV1:{...sim(77), ts: now, _type:'power'},
+    TBLV2:{...sim(88), ts: now, _type:'power'},
+    STKAI:{v:null, i:null, p:null, ts: now, _type:'status', statusRaw: 0, statusText: 'CLOSE / NORMAL'},
+    TLLV1:{...sim(80), ts: now, _type:'power'}
+  };
+  applyData(panelData);
+  const gens = {GEN1TB:sim(120,400),GEN2TB:sim(113,400),GEN1TL:sim(113,400),GEN2TL:sim(108,400)};
+  Object.entries(gens).forEach(([id,d]) => {
+    set(`fv-${id}`, `${d.p.toFixed(4)} MW`);
+    set(`fm-${id}`, `${d.v.toFixed(1)}V · ${d.i.toFixed(1)}A`);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// MANUAL REFRESH
+// ═══════════════════════════════════════════════════════════
+function manualRefresh() {
+  STATE.retryCount = 0;
+  STATE.dbMode = 'connecting';
+  setDbStatus('connecting','CONNECTING...');
+  showToast('↻ Refresh manual...','ok',2000);
+  fetchAndUpdate();
+}
+
+// ═══════════════════════════════════════════════════════════
+// WIRE ANIMATION
+// ═══════════════════════════════════════════════════════════
+function animateWires() {
+  if (STATE.animPaused) return;
+  WIRES.gen.forEach(id => {
+    const e = document.getElementById(id);
+    if (e) { e.className.baseVal=''; e.classList.add('wire-gen'); }
+  });
+  WIRES.trafo.forEach(id => {
+    const e = document.getElementById(id);
+    if (e) { e.className.baseVal=''; e.classList.add('wire-trafo'); }
+  });
+  WIRES.mv.forEach(id => {
+    const e = document.getElementById(id);
+    if (e) { e.className.baseVal=''; e.classList.add('wire-mv'); }
+  });
+  WIRES.lv.forEach(id => {
+    const e = document.getElementById(id);
+    if (e) { e.className.baseVal=''; e.classList.add('wire-lv'); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// ZOOM & PAN
+// ═══════════════════════════════════════════════════════════
+function resetZoom() {
+  STATE.zoom=1; STATE.tx=0; STATE.ty=0;
+  const ly = document.getElementById('zoom-layer');
+  ly.style.transform = 'translate(0px,0px) scale(1)';
+  set('zoom-indicator','Zoom: 100%');
+}
+
+function toggleAnim() {
+  STATE.animPaused = !STATE.animPaused;
+  const btn = document.getElementById('anim-btn');
+  const all = [...WIRES.gen,...WIRES.trafo,...WIRES.mv,...WIRES.lv];
+  if (STATE.animPaused) {
+    btn.textContent='RESUME ANIM'; btn.style.color='var(--amber)';
+    all.forEach(id => { const e=document.getElementById(id); if(e) e.style.animationPlayState='paused'; });
+  } else {
+    btn.textContent='PAUSE ANIM'; btn.style.color='';
+    all.forEach(id => { const e=document.getElementById(id); if(e) e.style.animationPlayState='running'; });
+  }
+}
+
+function selectFeeder(id) {
+  document.querySelectorAll('.feeder-card').forEach(c => c.classList.remove('active'));
+  const fc = document.getElementById(`fc-${id}`);
+  if (fc) fc.classList.add('active');
+}
+
+// Drag & Zoom
+(function() {
+  const canvas = document.getElementById('sld-canvas');
+  const layer  = document.getElementById('zoom-layer');
+  if (!canvas||!layer) return;
+  canvas.addEventListener('mousedown', e => { STATE.dragging=true; STATE.sx=e.clientX-STATE.tx; STATE.sy=e.clientY-STATE.ty; });
+  window.addEventListener('mouseup', () => { STATE.dragging=false; });
+  window.addEventListener('mousemove', e => {
+    if (!STATE.dragging) return;
+    STATE.tx=e.clientX-STATE.sx; STATE.ty=e.clientY-STATE.sy;
+    layer.style.transform=`translate(${STATE.tx}px,${STATE.ty}px) scale(${STATE.zoom})`;
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    const xs=(mx-STATE.tx)/STATE.zoom, ys=(my-STATE.ty)/STATE.zoom;
+    STATE.zoom *= e.deltaY>0 ? 0.88 : 1.12;
+    STATE.zoom = Math.max(0.2,Math.min(STATE.zoom,8));
+    STATE.tx=mx-xs*STATE.zoom; STATE.ty=my-ys*STATE.zoom;
+    layer.style.transform=`translate(${STATE.tx}px,${STATE.ty}px) scale(${STATE.zoom})`;
+    set('zoom-indicator',`Zoom: ${Math.round(STATE.zoom*100)}%`);
+  }, {passive:false});
+})();
+
+// ═══════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════
+setDbStatus('connecting','CONNECTING...');
+addAlarm('Menghubungkan ke database...', '#fbbf24');
+animateWires();
+fetchAndUpdate();
+setInterval(() => {
+  if (STATE.dbMode === 'fallback') runSimulation();
+  else fetchAndUpdate();
+}, SHEETS_CONFIG.REFRESH_INTERVAL);
+</script>
+</body>
+</html>
